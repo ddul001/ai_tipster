@@ -494,7 +494,18 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
         add_analysis_message("assistant", "I encountered an error while generating the analysis. Please try again or check the error message for details.")
 
         st.session_state.analysis_in_progress = False
-        
+
+
+# Set page config - this must be the first Streamlit command
+st.set_page_config(
+    page_title="Your App Title",
+    page_icon="⚽",  # Optional
+    initial_sidebar_state="collapsed",  # This makes sidebar collapsed by default
+    layout="wide"  # Optional
+)
+
+
+
 # Sidebar configuration
 with st.sidebar:
     st.header("⚙️ Settings")
