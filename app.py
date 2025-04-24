@@ -518,7 +518,7 @@ with st.sidebar:
     # Data source selection
     st.subheader("Data Sources")
     use_news = st.checkbox("Include News Analysis", value=True)
-    use_database = st.checkbox("Include Database Statistics", value=supabase_client is not None, 
+    use_database = st.checkbox("Include Database Statistics", value=False, 
                               help="Uses match data from Supabase database",
                               disabled=supabase_client is None)
     if use_database and supabase_client is None:
@@ -540,7 +540,7 @@ with st.sidebar:
     
     # Memory options
     st.subheader("Memory Options")
-    enable_memory = st.checkbox("Enable Persistent Memory", value=True)
+    enable_memory = st.checkbox("Enable Persistent Memory", value=False)
     if enable_memory and openai_api_key:
         memory = initialize_memory(openai_api_key)
         
