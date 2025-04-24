@@ -2,3 +2,4 @@ git+https://github.com/openai/swarm.git
 streamlit 
 duckduckgo-search
 python-dotenv
+bs4
