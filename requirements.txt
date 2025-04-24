@@ -3,3 +3,6 @@ streamlit
 duckduckgo-search
 python-dotenv
 bs4
+pandas
+requests
+
