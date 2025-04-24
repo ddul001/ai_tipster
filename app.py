@@ -501,7 +501,7 @@ with st.sidebar:
     st.markdown("Configure your match analysis parameters")
     
     # API keys
-    openai_api_key = st.text_input("OpenAI API Key", type="password", value="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")
+    openai_api_key = st.secrets["OPENAI_API_KEY"]
     supabase_url = st.text_input("Supabase URL", type="password", value="https://qbwevimrcpljiryhgxqv.supabase.co")
     supabase_key = st.text_input("Supabase Key", type="password", value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFid2V2aW1yY3BsamlyeWhneHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzY1NDUsImV4cCI6MjA1OTcxMjU0NX0.H01VSMaBNn3PZ5LEy1AldeIi1lNQL2njzNv2tvFxRsM")
     
