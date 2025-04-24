@@ -2,9 +2,19 @@
 Main application file for TipsterHeroes.AI - Football Match Analysis
 Handles UI components and orchestrates the workflow between agents and data services.
 """
+# THIS MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
+import streamlit as st
+
+st.set_page_config(
+    page_title="AI Tipster",
+    page_icon="⚽",
+    initial_sidebar_state="collapsed",  # or "expanded", "auto"
+    layout="wide"
+)
+
 
 import os
-import streamlit as st
+
 from datetime import datetime
 from dotenv import load_dotenv
 import json
@@ -22,14 +32,6 @@ from data_service import (
 # Load environment variables
 load_dotenv()
 
-
-# Set page config - this must be the first Streamlit command
-st.set_page_config(
-    page_title="Your App Title",
-    page_icon="⚽",  # Optional
-    initial_sidebar_state="collapsed",  # This makes sidebar collapsed by default
-    layout="wide"  # Optional
-)
 
 
 # Set page configuration
