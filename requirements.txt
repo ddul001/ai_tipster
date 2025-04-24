@@ -9,3 +9,4 @@ mem0ai
 embedchain
 supabase
 qdrant_client
+pysqlite3-binary
