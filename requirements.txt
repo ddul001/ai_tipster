@@ -10,3 +10,4 @@ embedchain
 supabase
 qdrant_client
 pysqlite3-binary
+openai>=1.0.0

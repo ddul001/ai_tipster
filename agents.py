@@ -9,9 +9,14 @@ import streamlit as st
 from duckduckgo_search import DDGS
 from swarm import Swarm, Agent
 from datetime import datetime
-
+from openai import OpenAI
 # Initialize Swarm client
-client = Swarm()
+# Initialize Swarm client with API key from Streamlit secrets
+try:
+    client = Swarm(client=OpenAI(api_key=st.secrets["OPENAI_API_KEY"]))
+except Exception as e:
+    st.error(f"Failed to initialize Swarm client: {str(e)}")
+    st.stop()
 
 # Default model for agents
 MODEL = "gpt-4o-mini"
