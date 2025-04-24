@@ -34,12 +34,7 @@ load_dotenv()
 
 
 
-# Set page configuration
-st.set_page_config(
-    page_title="TipsterHeroes - AI Football Analysis",
-    page_icon="⚽",
-    layout="wide"
-)
+ 
 
 st.title("⚽ TipsterHeroes.AI - Football Match Analysis")
 st.markdown("AI-powered football news analysis for match predictions and betting insights")
