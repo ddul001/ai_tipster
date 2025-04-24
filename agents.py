@@ -467,9 +467,7 @@ def chat_with_analysis(query, analysis_context, scraped_content, chat_history):
 
     system_content = f"Use the following football match analysis as context:\n\n{analysis_context}"
 
-    print("----- Inside chat_with_analysis -----")
-    print("scraped_content:", scraped_content)
-    print("analysis_context:", analysis_context)
+
 
     if scraped_content:
         system_content += "\n\nScraped Content from News Articles:\n"
