@@ -5,7 +5,7 @@ python-dotenv
 bs4
 pandas
 requests
-mem0
+mem0ai
 embedchain
 supabase
 qdrant_client
