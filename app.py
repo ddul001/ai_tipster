@@ -648,8 +648,8 @@ with col1:
     if supabase_client and use_database:
         st.write("📊 Select from Database or Enter Manually")
         
-        countries_data = supabase_client.from_("countries").select("id, name").execute()
-        country_dict = {c["id"]: c["name"] for c in countries_data.data if c.get("id") and c.get("name")}
+        countries_data = supabase_client.from_("countries").select("country_id, country").execute()
+        country_dict = {c["id"]: c["country"] for c in countries_data.data if c.get("id") and c.get("country")}
         selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
         selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name][0]
 
