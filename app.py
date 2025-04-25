@@ -253,254 +253,318 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
         match_details = f"{home_team} vs {away_team}"
         full_query = f"{match_details} {league} {match_date.strftime('%d %B %Y')}"
 
-        print("full_query", full_query)
-        
-        # Initialize chat if not present
         if "analysis_chat" not in st.session_state:
             st.session_state.analysis_chat = []
-            
-        # Set analysis in progress flag
         st.session_state.analysis_in_progress = True
-            
-        # Send welcome message
-        add_analysis_message("assistant", f"I'll analyze the upcoming match between {home_team} and {away_team}. Let me gather the information we need!", animate=True)
-        
-        # Set up early chat context with basic match info
-        early_context = f"""
-        MATCH: {match_details}
-        LEAGUE: {league}
-        DATE: {match_date.strftime('%d %B %Y')}
-        
-        ANALYSIS: Currently being generated. Basic questions about these teams can be answered.
-        """
-        
-        # Initialize chat bot early with limited context
-        st.session_state.chat_context = early_context
-        setup_chat_with_context({"initial_analysis": early_context}, full_query, chat_method, openai_api_key)
-        
 
-        # Check if analysis already exists
+        # Early context while working
+        early_context = f"MATCH: {match_details}\nLEAGUE: {league}\nDATE: {match_date.strftime('%d %B %Y')}"
+        st.session_state.chat_context = early_context
+
+        # Check for existing analysis
         if supabase_client:
-            add_analysis_message("assistant", "First, let me check if I've already analyzed this match before...")
-            
             exists, analysis_id = check_analysis_exists(supabase_client, home_team, away_team, match_date)
             if exists:
-                add_analysis_message("assistant", f"Good news! I've already analyzed this match. Let me load that analysis for you.")
-                
                 analysis_data = get_analysis_by_id(supabase_client, analysis_id)
                 if analysis_data:
-                    add_analysis_message("assistant", "Analysis loaded successfully! Here's what I found earlier.")
-                    
-                    # Use raw_content if available, otherwise parse the HTML content
-                    if "raw_content" in analysis_data and analysis_data["raw_content"]:
-                        try:
-                            # Parse the JSON string into a dictionary
-                            results = json.loads(analysis_data["raw_content"])
-                            parsed_content = results.get("combined_analysis", "")
-                            # If parsed_content is empty, try to extract it from the original HTML
-                            if not parsed_content and "content" in analysis_data:
-                                parsed_content = parse_wordpress_analysis(analysis_data["content"])
-                                results["combined_analysis"] = parsed_content
-                        except json.JSONDecodeError:
-                            # Fallback to parsing HTML if JSON parsing fails
-                            content = analysis_data.get("content", "")
-                            parsed_content = parse_wordpress_analysis(content)
-                            
-                            # Extract betting insights if available
-                            betting_insights = extract_betting_insights(parsed_content)
-                            
-                            # Create results dictionary
-                            results = {
-                                "combined_analysis": parsed_content,
-                                "enhanced_analysis": parsed_content,
-                                "initial_analysis": "Loaded from database",
-                                "synthesized_news": "Loaded from database",
-                                "raw_news": "Loaded from database",
-                                "original_html": content,
-                                "betting_insights": betting_insights
-                            }
-                    else:
-                        # Fallback to the old method if raw_content is not available
-                        content = analysis_data.get("content", "")
-                        parsed_content = parse_wordpress_analysis(content)
-                        
-                        # Extract betting insights if available
-                        betting_insights = extract_betting_insights(parsed_content)
-                        
-                        # Convert stored analysis to results format
-                        results = {
-                            "combined_analysis": parsed_content,
-                            "enhanced_analysis": parsed_content,
-                            "initial_analysis": "Loaded from database",
-                            "synthesized_news": "Loaded from database",
-                            "raw_news": "Loaded from database",
-                            "original_html": content,
-                            "betting_insights": betting_insights
-                        }
-                    
-                    # Store results in session state
-                    st.session_state.results = results
-                    st.session_state.match_info = {
-                        "match": match_details,
-                        "league": league,
-                        "date": match_date
+                    parsed_content = parse_wordpress_analysis(analysis_data.get("content", ""))
+                    results = {
+                        "source_type": "db",
+                        "combined_analysis": parsed_content
                     }
-                    
-                    add_analysis_message("assistant", "You can now explore the detailed results in the tabs above, or chat with me if you have any questions about my findings.")
+                    st.session_state.results = results
+                    st.session_state.match_info = {"match": match_details, "league": league, "date": match_date}
                     st.session_state.analysis_in_progress = False
-                    # Initialize chatbot for follow-up questions
-                    setup_chat_with_context(results, full_query, chat_method, openai_api_key)
-
                     return
-                    
-            else:
-                add_analysis_message("assistant", "This looks like a new analysis! Let me get started.")
-        
-        # Initialize the result container
-        results = {}
-        
-        # Flag to track if we need to run news analysis
-        run_news_analysis = use_news
-        
-        # Flag to track if we need database analysis
-        run_db_analysis = use_database and supabase_client
-        
-        # Database analysis
+
+        # No existing analysis, generate new
+        results = agents.process_football_news(full_query)
+
         db_insights = None
-        if run_db_analysis:
-            add_analysis_message("assistant", f"I'll first look at the statistics for both teams...")
-            
-            # Get match data
-            add_analysis_message("assistant", f"Searching for previous matches between these teams...")
-            match_data = get_match_with_bets(supabase_client, home_team, away_team, closest_to_date=match_date)
-            
-            if match_data:
-                add_analysis_message("assistant", f"Found {home_team} vs {away_team} match history! Let me analyze that data.")
-            else:
-                add_analysis_message("assistant", f"These teams don't appear to have played each other recently. I'll focus on their individual performances.")
-                # Create a basic match data structure
-                match_data = {
+        if use_database and supabase_client:
+            db_insights = agents.process_database_insights(
+                match_data={
                     'home_team': home_team,
                     'away_team': away_team,
                     'match_date': match_date.strftime('%Y-%m-%d'),
                     'league_name': league
-                }
-            
-            # Get team statistics with conversational updates
-            add_analysis_message("assistant", f"Now checking {home_team}'s recent form and statistics...")
-            team1_data = get_team_stats(supabase_client, home_team)
-            if team1_data:
-                # Extract a meaningful stat to comment on
-                wins = team1_data.get("wins", "several")
-                goals = team1_data.get("goals_scored", "a number of")
-                add_analysis_message("assistant", f"{home_team} has won {wins} matches recently, scoring {goals} goals. Let me dig deeper into their performance metrics.")
-            
-            add_analysis_message("assistant", f"Looking at {away_team}'s performance now...")
-            team2_data = get_team_stats(supabase_client, away_team)
-            if team2_data:
-                # Extract a meaningful stat to comment on
-                away_form = team2_data.get("wins_away", "decent")
-                goals_conceded = team2_data.get("goals_conceded_away", "some")
-                add_analysis_message("assistant", f"{away_team} has shown {away_form} away form. They've conceded {goals_conceded} goals on the road.")
-            
-            # # Get head-to-head data with conversational comment
-            # add_analysis_message("assistant", f"Analyzing head-to-head matches between these teams...")
-            # h2h_data = get_head_to_head(supabase_client, home_team, away_team)
-            # if not h2h_data.empty:
-            #     h2h_count = len(h2h_data)
-            #     add_analysis_message("assistant", f"Found {h2h_count} previous encounters between these teams. This will provide valuable context!")
-            # else:
-            #     add_analysis_message("assistant", "I couldn't find many direct matches between these teams, but that's fine. I'll focus on their individual performances.")
-            
-            # Get league standings with a conversational comment
-            add_analysis_message("assistant", f"Checking the {league} table to see where both teams stand...")
-            league_data = get_league_standings(supabase_client, league)
-            if not league_data.empty:
-                add_analysis_message("assistant", f"Got the current standings! This will help us understand the importance of this match in the {league} context.")
-            
-            # Generate database insights with conversational update
-            add_analysis_message("assistant", "Now I'll analyze all this statistical data to find key insights...")
-            db_insights = agents.process_database_insights(
-                match_data, 
-                team1_data or {"team_name": home_team, "note": "Limited statistics available"}, 
-                team2_data or {"team_name": away_team, "note": "Limited statistics available"},
-                #h2h_data,
-                league_data
+                },
+                team1_data=get_team_stats(supabase_client, home_team),
+                team2_data=get_team_stats(supabase_client, away_team),
+                head_to_head_data=None,
+                league_data=get_league_standings(supabase_client, league)
             )
-            
-            add_analysis_message("assistant", "Statistical analysis complete! I've found some interesting patterns.")
-        
-        # News-based analysis with conversational updates
-        if run_news_analysis:
-            add_analysis_message("assistant", "Now I'll search for the latest news about this match. This will help us catch any recent developments...")
-            
-            add_analysis_message("assistant", f"Searching for news about {match_details}...")
-            results = agents.process_football_news(full_query)
-            
-            add_analysis_message("assistant", "Found some relevant news articles! I'm processing them to extract the most important information.")
-        
-        # Combine analyses if both are available
-        if run_news_analysis and run_db_analysis and db_insights:
-            add_analysis_message("assistant", "I'm now combining statistical insights with the latest news to create a comprehensive analysis...")
-            combined_analysis = agents.combine_analysis_with_database(results, db_insights)
-            results["combined_analysis"] = combined_analysis
-            results["db_insights"] = db_insights
-            
-            add_analysis_message("assistant", "Analysis complete! I've created a detailed report that combines statistical data with the latest news and expert insights.")
-        elif db_insights:
-            # Only database analysis available
-            add_analysis_message("assistant", "Based on the statistical data, I've prepared a comprehensive analysis...")
-            results["db_insights"] = db_insights
-            results["enhanced_analysis"] = db_insights  # Use db_insights as the main analysis
-            results["initial_analysis"] = "Analysis based on database statistics only."
-            results["synthesized_news"] = "No news analysis performed."
-            results["raw_news"] = "No news search performed."
-            results["combined_analysis"] = db_insights
-        
-        # Store results in session state
-        st.session_state.results = results
-        st.session_state.match_info = {
-            "match": match_details,
-            "league": league,
-            "date": match_date
-        }
 
-        # Save analysis to WordPress with conversational update
-        if supabase_client:
-            add_analysis_message("assistant", "I'm saving this analysis to our database in WordPress-ready format...")
-            save_success, blog_id = save_analysis_for_wordpress(supabase_client, st.session_state.match_info, results)
-            if save_success:
-                add_analysis_message("assistant", f"Analysis saved successfully! It's ready to be published to your WordPress site.")
-        
+            results = {
+                **results,
+                "source_type": "news+db",
+                "db_insights": db_insights,
+                "combined_analysis": agents.combine_analysis_with_database(results, db_insights)
+            }
+
+        st.session_state.results = results
+        st.session_state.match_info = {"match": match_details, "league": league, "date": match_date}
         st.session_state.analysis_in_progress = False
 
-        add_analysis_message("assistant", "Analysis complete! Here's what I found:")
-
-        # Add a summary of each analysis component as a separate message
-        if "combined_analysis" in results:
-            summary = summarize_analysis(results["combined_analysis"], 300)  # Limit to ~300 chars
-            add_analysis_message("assistant", f"**Combined Analysis**\n{summary}\n\n*Ask me for more details about this analysis.*")
-
-        if "db_insights" in results and results["db_insights"] != results.get("combined_analysis", ""):
-            summary = summarize_analysis(results["db_insights"], 300)
-            add_analysis_message("assistant", f"**Statistical Data**\n{summary}\n\n*Ask me about specific statistics or trends.*")
-
-        if "synthesized_news" in results and results["synthesized_news"] != "No news analysis performed.":
-            summary = summarize_analysis(results["synthesized_news"], 300)
-            add_analysis_message("assistant", f"**News Analysis**\n{summary}\n\n*Ask me about recent news and developments.*")
-
-        # Add a prompt for the user
-        add_analysis_message("assistant", "You can ask me specific questions about this match. For example:\n- What are the key players to watch?\n- How do their recent forms compare?\n- What betting angles look promising?\n- What's your prediction for the final score?")
-
-        # Initialize chatbot for follow-up questions
-        setup_chat_with_context(results, full_query, chat_method, openai_api_key)
-    
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
         st.error(traceback.format_exc())
-        add_analysis_message("assistant", "I encountered an error while generating the analysis. Please try again or check the error message for details.")
-
         st.session_state.analysis_in_progress = False
+
+# def generate_analysis_conversational(home_team, away_team, league, match_date):
+#     """Generate analysis for the specified match using a conversational approach"""
+#     try:
+#         match_details = f"{home_team} vs {away_team}"
+#         full_query = f"{match_details} {league} {match_date.strftime('%d %B %Y')}"
+
+#         print("full_query", full_query)
+        
+#         # Initialize chat if not present
+#         if "analysis_chat" not in st.session_state:
+#             st.session_state.analysis_chat = []
+            
+#         # Set analysis in progress flag
+#         st.session_state.analysis_in_progress = True
+            
+#         # Send welcome message
+#         add_analysis_message("assistant", f"I'll analyze the upcoming match between {home_team} and {away_team}. Let me gather the information we need!", animate=True)
+        
+#         # Set up early chat context with basic match info
+#         early_context = f"""
+#         MATCH: {match_details}
+#         LEAGUE: {league}
+#         DATE: {match_date.strftime('%d %B %Y')}
+        
+#         ANALYSIS: Currently being generated. Basic questions about these teams can be answered.
+#         """
+        
+#         # Initialize chat bot early with limited context
+#         st.session_state.chat_context = early_context
+#         setup_chat_with_context({"initial_analysis": early_context}, full_query, chat_method, openai_api_key)
+        
+
+#         # Check if analysis already exists
+#         if supabase_client:
+#             add_analysis_message("assistant", "First, let me check if I've already analyzed this match before...")
+            
+#             exists, analysis_id = check_analysis_exists(supabase_client, home_team, away_team, match_date)
+#             if exists:
+#                 add_analysis_message("assistant", f"Good news! I've already analyzed this match. Let me load that analysis for you.")
+                
+#                 analysis_data = get_analysis_by_id(supabase_client, analysis_id)
+#                 if analysis_data:
+#                     add_analysis_message("assistant", "Analysis loaded successfully! Here's what I found earlier.")
+                    
+#                     # Use raw_content if available, otherwise parse the HTML content
+#                     if "raw_content" in analysis_data and analysis_data["raw_content"]:
+#                         try:
+#                             # Parse the JSON string into a dictionary
+#                             results = json.loads(analysis_data["raw_content"])
+#                             parsed_content = results.get("combined_analysis", "")
+#                             # If parsed_content is empty, try to extract it from the original HTML
+#                             if not parsed_content and "content" in analysis_data:
+#                                 parsed_content = parse_wordpress_analysis(analysis_data["content"])
+#                                 results["combined_analysis"] = parsed_content
+#                         except json.JSONDecodeError:
+#                             # Fallback to parsing HTML if JSON parsing fails
+#                             content = analysis_data.get("content", "")
+#                             parsed_content = parse_wordpress_analysis(content)
+                            
+#                             # Extract betting insights if available
+#                             betting_insights = extract_betting_insights(parsed_content)
+                            
+#                             # Create results dictionary
+#                             results = {
+#                                 "combined_analysis": parsed_content,
+#                                 "enhanced_analysis": parsed_content,
+#                                 "initial_analysis": "Loaded from database",
+#                                 "synthesized_news": "Loaded from database",
+#                                 "raw_news": "Loaded from database",
+#                                 "original_html": content,
+#                                 "betting_insights": betting_insights
+#                             }
+#                     else:
+#                         # Fallback to the old method if raw_content is not available
+#                         content = analysis_data.get("content", "")
+#                         parsed_content = parse_wordpress_analysis(content)
+                        
+#                         # Extract betting insights if available
+#                         betting_insights = extract_betting_insights(parsed_content)
+                        
+#                         # Convert stored analysis to results format
+#                         results = {
+#                             "combined_analysis": parsed_content,
+#                             "enhanced_analysis": parsed_content,
+#                             "initial_analysis": "Loaded from database",
+#                             "synthesized_news": "Loaded from database",
+#                             "raw_news": "Loaded from database",
+#                             "original_html": content,
+#                             "betting_insights": betting_insights
+#                         }
+                    
+#                     # Store results in session state
+#                     st.session_state.results = results
+#                     st.session_state.match_info = {
+#                         "match": match_details,
+#                         "league": league,
+#                         "date": match_date
+#                     }
+                    
+#                     add_analysis_message("assistant", "You can now explore the detailed results in the tabs above, or chat with me if you have any questions about my findings.")
+#                     st.session_state.analysis_in_progress = False
+#                     # Initialize chatbot for follow-up questions
+#                     setup_chat_with_context(results, full_query, chat_method, openai_api_key)
+
+#                     return
+                    
+#             else:
+#                 add_analysis_message("assistant", "This looks like a new analysis! Let me get started.")
+        
+#         # Initialize the result container
+#         results = {}
+        
+#         # Flag to track if we need to run news analysis
+#         run_news_analysis = use_news
+        
+#         # Flag to track if we need database analysis
+#         run_db_analysis = use_database and supabase_client
+        
+#         # Database analysis
+#         db_insights = None
+#         if run_db_analysis:
+#             add_analysis_message("assistant", f"I'll first look at the statistics for both teams...")
+            
+#             # Get match data
+#             add_analysis_message("assistant", f"Searching for previous matches between these teams...")
+#             match_data = get_match_with_bets(supabase_client, home_team, away_team, closest_to_date=match_date)
+            
+#             if match_data:
+#                 add_analysis_message("assistant", f"Found {home_team} vs {away_team} match history! Let me analyze that data.")
+#             else:
+#                 add_analysis_message("assistant", f"These teams don't appear to have played each other recently. I'll focus on their individual performances.")
+#                 # Create a basic match data structure
+#                 match_data = {
+#                     'home_team': home_team,
+#                     'away_team': away_team,
+#                     'match_date': match_date.strftime('%Y-%m-%d'),
+#                     'league_name': league
+#                 }
+            
+#             # Get team statistics with conversational updates
+#             add_analysis_message("assistant", f"Now checking {home_team}'s recent form and statistics...")
+#             team1_data = get_team_stats(supabase_client, home_team)
+#             if team1_data:
+#                 # Extract a meaningful stat to comment on
+#                 wins = team1_data.get("wins", "several")
+#                 goals = team1_data.get("goals_scored", "a number of")
+#                 add_analysis_message("assistant", f"{home_team} has won {wins} matches recently, scoring {goals} goals. Let me dig deeper into their performance metrics.")
+            
+#             add_analysis_message("assistant", f"Looking at {away_team}'s performance now...")
+#             team2_data = get_team_stats(supabase_client, away_team)
+#             if team2_data:
+#                 # Extract a meaningful stat to comment on
+#                 away_form = team2_data.get("wins_away", "decent")
+#                 goals_conceded = team2_data.get("goals_conceded_away", "some")
+#                 add_analysis_message("assistant", f"{away_team} has shown {away_form} away form. They've conceded {goals_conceded} goals on the road.")
+            
+#             # # Get head-to-head data with conversational comment
+#             # add_analysis_message("assistant", f"Analyzing head-to-head matches between these teams...")
+#             # h2h_data = get_head_to_head(supabase_client, home_team, away_team)
+#             # if not h2h_data.empty:
+#             #     h2h_count = len(h2h_data)
+#             #     add_analysis_message("assistant", f"Found {h2h_count} previous encounters between these teams. This will provide valuable context!")
+#             # else:
+#             #     add_analysis_message("assistant", "I couldn't find many direct matches between these teams, but that's fine. I'll focus on their individual performances.")
+            
+#             # Get league standings with a conversational comment
+#             add_analysis_message("assistant", f"Checking the {league} table to see where both teams stand...")
+#             league_data = get_league_standings(supabase_client, league)
+#             if not league_data.empty:
+#                 add_analysis_message("assistant", f"Got the current standings! This will help us understand the importance of this match in the {league} context.")
+            
+#             # Generate database insights with conversational update
+#             add_analysis_message("assistant", "Now I'll analyze all this statistical data to find key insights...")
+#             db_insights = agents.process_database_insights(
+#                 match_data, 
+#                 team1_data or {"team_name": home_team, "note": "Limited statistics available"}, 
+#                 team2_data or {"team_name": away_team, "note": "Limited statistics available"},
+#                 #h2h_data,
+#                 league_data
+#             )
+            
+#             add_analysis_message("assistant", "Statistical analysis complete! I've found some interesting patterns.")
+        
+#         # News-based analysis with conversational updates
+#         if run_news_analysis:
+#             add_analysis_message("assistant", "Now I'll search for the latest news about this match. This will help us catch any recent developments...")
+            
+#             add_analysis_message("assistant", f"Searching for news about {match_details}...")
+#             results = agents.process_football_news(full_query)
+            
+#             add_analysis_message("assistant", "Found some relevant news articles! I'm processing them to extract the most important information.")
+        
+#         # Combine analyses if both are available
+#         if run_news_analysis and run_db_analysis and db_insights:
+#             add_analysis_message("assistant", "I'm now combining statistical insights with the latest news to create a comprehensive analysis...")
+#             combined_analysis = agents.combine_analysis_with_database(results, db_insights)
+#             results["combined_analysis"] = combined_analysis
+#             results["db_insights"] = db_insights
+            
+#             add_analysis_message("assistant", "Analysis complete! I've created a detailed report that combines statistical data with the latest news and expert insights.")
+#         elif db_insights:
+#             # Only database analysis available
+#             add_analysis_message("assistant", "Based on the statistical data, I've prepared a comprehensive analysis...")
+#             results["db_insights"] = db_insights
+#             results["enhanced_analysis"] = db_insights  # Use db_insights as the main analysis
+#             results["initial_analysis"] = "Analysis based on database statistics only."
+#             results["synthesized_news"] = "No news analysis performed."
+#             results["raw_news"] = "No news search performed."
+#             results["combined_analysis"] = db_insights
+        
+#         # Store results in session state
+#         st.session_state.results = results
+#         st.session_state.match_info = {
+#             "match": match_details,
+#             "league": league,
+#             "date": match_date
+#         }
+
+#         # Save analysis to WordPress with conversational update
+#         if supabase_client:
+#             add_analysis_message("assistant", "I'm saving this analysis to our database in WordPress-ready format...")
+#             save_success, blog_id = save_analysis_for_wordpress(supabase_client, st.session_state.match_info, results)
+#             if save_success:
+#                 add_analysis_message("assistant", f"Analysis saved successfully! It's ready to be published to your WordPress site.")
+        
+#         st.session_state.analysis_in_progress = False
+
+#         add_analysis_message("assistant", "Analysis complete! Here's what I found:")
+
+#         # Add a summary of each analysis component as a separate message
+#         if "combined_analysis" in results:
+#             summary = summarize_analysis(results["combined_analysis"], 300)  # Limit to ~300 chars
+#             add_analysis_message("assistant", f"**Combined Analysis**\n{summary}\n\n*Ask me for more details about this analysis.*")
+
+#         if "db_insights" in results and results["db_insights"] != results.get("combined_analysis", ""):
+#             summary = summarize_analysis(results["db_insights"], 300)
+#             add_analysis_message("assistant", f"**Statistical Data**\n{summary}\n\n*Ask me about specific statistics or trends.*")
+
+#         if "synthesized_news" in results and results["synthesized_news"] != "No news analysis performed.":
+#             summary = summarize_analysis(results["synthesized_news"], 300)
+#             add_analysis_message("assistant", f"**News Analysis**\n{summary}\n\n*Ask me about recent news and developments.*")
+
+#         # Add a prompt for the user
+#         add_analysis_message("assistant", "You can ask me specific questions about this match. For example:\n- What are the key players to watch?\n- How do their recent forms compare?\n- What betting angles look promising?\n- What's your prediction for the final score?")
+
+#         # Initialize chatbot for follow-up questions
+#         setup_chat_with_context(results, full_query, chat_method, openai_api_key)
+    
+#     except Exception as e:
+#         st.error(f"An error occurred: {str(e)}")
+#         st.error(traceback.format_exc())
+#         add_analysis_message("assistant", "I encountered an error while generating the analysis. Please try again or check the error message for details.")
+
+#         st.session_state.analysis_in_progress = False
 
 
 

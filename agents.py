@@ -297,6 +297,7 @@ data_insights_agent = Agent(
     model=MODEL
 )
 
+
 def process_football_news(match_details):
     """Run the football news processing workflow with elaboration"""
     with st.status("Processing football match analysis...", expanded=True) as status:
@@ -307,68 +308,103 @@ def process_football_news(match_details):
             messages=[{"role": "user", "content": f"Find recent news about {match_details}"}]
         )
         raw_news = search_response.messages[-1]["content"]
+        scraped_content = raw_news  # Assuming search_agent already handles scraping if needed
 
-        status.write(f"🔍 found recent news {raw_news}")
-        
+        status.write(f"🔍 Found recent news")
+
         # Synthesis Phase
         status.write("🔄 Synthesizing information...")
         synthesis_response = client.run(
             agent=synthesis_agent,
-            messages=[{"role": "user", "content": f"Synthesize these football news articles:\n{raw_news}"}]
+            messages=[{"role": "user", "content": f"Synthesize these football news articles:\n{scraped_content}"}]
         )
         synthesized_news = synthesis_response.messages[-1]["content"]
-        
-        # Summary Phase
-        status.write("📝 Creating initial match analysis...")
-        summary_response = client.run(
-            agent=summary_agent,
-            messages=[{"role": "user", "content": f"Summarize this football synthesis for betting context:\n{synthesized_news}"}]
-        )
-        initial_analysis = summary_response.messages[-1]["content"]
-        
-        # Elaboration Phase
+
+        # Elaboration Phase (instead of summary)
         status.write("🔍 Enhancing analysis with additional context...")
         elaboration_response = client.run(
             agent=elaboration_agent,
-            messages=[{
-                "role": "user", 
-                "content": f"""
-                MATCH: {match_details}
-                
-                Latest News:
-                {raw_news}
-                
-                INITIAL ANALYSIS:
-                {initial_analysis}
-
-
-                Please enhance this match analysis with additional statistics, betting context, 
-                and deeper insights to help bettors make more informed decisions.
-                """
-            }]
+            messages=[{"role": "user", "content": f"Enhance this football news synthesis for match betting insights:\n{synthesized_news}"}]
         )
         enhanced_analysis = elaboration_response.messages[-1]["content"]
-        
+
         status.update(label="Analysis complete!", state="complete")
 
-        news_articles = search_news(match_details)  # Get the scraped data
-
-        raw_news_formatted = news_articles
-
-        scraped_content = news_articles   # Handle empty results
-
-        print("----- Inside process_football_news -----")
-        print("raw_news:", raw_news_formatted)
-        print("scraped_content:", scraped_content)
-        print("---------------------------------------")
-                
         return {
+            "source_type": "news",
             "raw_news": raw_news,
-            "scraped_content": scraped_content,  # Pass the dictionary
+            "scraped_content": scraped_content,
             "synthesized_news": synthesized_news,
-            "initial_analysis": initial_analysis,
             "enhanced_analysis": enhanced_analysis
         }
+    
+    
+# def process_football_news(match_details):
+#     """Run the football news processing workflow with elaboration"""
+#     with st.status("Processing football match analysis...", expanded=True) as status:
+#         # Search Phase
+#         status.write("🔍 Searching for football news...")
+#         search_response = client.run(
+#             agent=search_agent,
+#             messages=[{"role": "user", "content": f"Find recent news about {match_details}"}]
+#         )
+#         raw_news = search_response.messages[-1]["content"]
+
+#         status.write(f"🔍 found recent news {raw_news}")
+        
+#         # Synthesis Phase
+#         status.write("🔄 Synthesizing information...")
+#         synthesis_response = client.run(
+#             agent=synthesis_agent,
+#             messages=[{"role": "user", "content": f"Synthesize these football news articles:\n{raw_news}"}]
+#         )
+#         synthesized_news = synthesis_response.messages[-1]["content"]
+        
+#         # Summary Phase
+#         status.write("📝 Creating initial match analysis...")
+#         summary_response = client.run(
+#             agent=summary_agent,
+#             messages=[{"role": "user", "content": f"Summarize this football synthesis for betting context:\n{synthesized_news}"}]
+#         )
+#         initial_analysis = summary_response.messages[-1]["content"]
+        
+#         # Elaboration Phase
+#         status.write("🔍 Enhancing analysis with additional context...")
+#         elaboration_response = client.run(
+#             agent=elaboration_agent,
+#             messages=[{
+#                 "role": "user", 
+#                 "content": f"""
+#                 MATCH: {match_details}
+                
+#                 Latest News:
+#                 {raw_news}
+                
+#                 INITIAL ANALYSIS:
+#                 {initial_analysis}
+
+
+#                 Please enhance this match analysis with additional statistics, betting context, 
+#                 and deeper insights to help bettors make more informed decisions.
+#                 """
+#             }]
+#         )
+#         enhanced_analysis = elaboration_response.messages[-1]["content"]
+        
+#         status.update(label="Analysis complete!", state="complete")
+
+#         #news_articles = search_news(match_details)  # Get the scraped data
+
+
+
+                
+#         return {
+#             "raw_news": raw_news,
+#             "scraped_content": raw_news,  # Pass the dictionary
+#             "synthesized_news": synthesized_news,
+#             "initial_analysis": initial_analysis,
+#             "enhanced_analysis": enhanced_analysis
+#         }
 
 def process_database_insights(match_data, team1_data, team2_data, head_to_head_data=None, league_data=None):
     """
