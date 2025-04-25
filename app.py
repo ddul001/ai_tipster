@@ -251,17 +251,15 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
     """Generate analysis for the specified match using a conversational approach"""
     try:
         match_details = f"{home_team} vs {away_team}"
-        full_query = f"{match_details} {league} {match_date.strftime('%d %B %Y')}"
+        full_query = f"{match_details} {league or 'Unknown League'} {match_date.strftime('%d %B %Y')}"
 
         if "analysis_chat" not in st.session_state:
             st.session_state.analysis_chat = []
         st.session_state.analysis_in_progress = True
 
-        # Early context while working
         early_context = f"MATCH: {match_details}\nLEAGUE: {league}\nDATE: {match_date.strftime('%d %B %Y')}"
         st.session_state.chat_context = early_context
 
-        # Check for existing analysis
         if supabase_client:
             exists, analysis_id = check_analysis_exists(supabase_client, home_team, away_team, match_date)
             if exists:
@@ -277,7 +275,6 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
                     st.session_state.analysis_in_progress = False
                     return
 
-        # No existing analysis, generate new
         results = agents.process_football_news(full_query)
 
         db_insights = None
@@ -287,7 +284,7 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
                     'home_team': home_team,
                     'away_team': away_team,
                     'match_date': match_date.strftime('%Y-%m-%d'),
-                    'league_name': league
+                    'league_name': league or "Unknown"
                 },
                 team1_data=get_team_stats(supabase_client, home_team),
                 team2_data=get_team_stats(supabase_client, away_team),
