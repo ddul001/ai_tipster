@@ -648,17 +648,15 @@ with col1:
     if supabase_client and use_database:
         st.write("📊 Select from Database or Enter Manually")
         
-        # Get leagues from database for filtering
-        leagues_tab = st.expander("Filter by League")
-        with leagues_tab:
-            all_leagues = ["All Leagues"]
-            if supabase_client:
-                fetched_leagues = get_leagues(supabase_client)
-                all_leagues.extend(fetched_leagues)
+        countries = [r["country"] for r in supabase_client.from_("leagues").select("country").execute().data if r.get("country")]
+        selected_country = st.selectbox("Filter by Country", sorted(set(countries)))
 
-            # Populate selectbox for filtering
-            selected_league_filter = st.selectbox("Filter by League", all_leagues)
-            league_filter_value = None if selected_league_filter == "All Leagues" else selected_league_filter
+        all_leagues = ["All Leagues"]
+        leagues_data = supabase_client.from_("leagues").select("league").eq("country", selected_country).execute()
+        league_options = [item["league"] for item in leagues_data.data]
+        all_leagues.extend(league_options)
+        selected_league_filter = st.selectbox("Filter by League", all_leagues)
+        league_filter_value = None if selected_league_filter == "All Leagues" else selected_league_filter
         
         # Get matches from database
         try:
