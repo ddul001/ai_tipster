@@ -308,11 +308,14 @@ def process_football_news(match_details):
             messages=[{"role": "user", "content": f"Find recent news about {match_details}"}]
         )
         raw_news = search_response.messages[-1]["content"]
-        scraped_content = raw_news  # Assuming search_agent already handles scraping if needed
+        scraped_content = raw_news
 
-        status.write(f"🔍 Found recent news")
+        # Optional: Show results nicely instead of raw print
+        st.markdown("### 📰 News Results")
+        for result in raw_news.split("===="):
+            if result.strip():
+                st.markdown(result.strip())
 
-        # Synthesis Phase
         status.write("🔄 Synthesizing information...")
         synthesis_response = client.run(
             agent=synthesis_agent,
@@ -320,7 +323,6 @@ def process_football_news(match_details):
         )
         synthesized_news = synthesis_response.messages[-1]["content"]
 
-        # Elaboration Phase (instead of summary)
         status.write("🔍 Enhancing analysis with additional context...")
         elaboration_response = client.run(
             agent=elaboration_agent,
@@ -338,7 +340,7 @@ def process_football_news(match_details):
             "enhanced_analysis": enhanced_analysis
         }
     
-    
+
 # def process_football_news(match_details):
 #     """Run the football news processing workflow with elaboration"""
 #     with st.status("Processing football match analysis...", expanded=True) as status:
