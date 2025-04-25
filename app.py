@@ -648,19 +648,22 @@ with col1:
     if supabase_client and use_database:
         st.write("📊 Select from Database or Enter Manually")
         
+        # Fetch distinct countries from 'countries' table
         countries_data = supabase_client.from_("countries").select("country_id, country").execute()
-        country_dict = {c["id"]: c["country"] for c in countries_data.data if c.get("id") and c.get("country")}
-        selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
-        selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name][0]
+        country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
+        
+        if country_dict:
+            selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
+            selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name]
+            if selected_country_id:
+                selected_country_id = selected_country_id[0]
 
-        leagues_data = supabase_client.from_("leagues").select("league").eq("country_id", selected_country_id).execute()
-        all_leagues = ["All Leagues"]
+                leagues_data = supabase_client.from_("leagues").select("league").eq("country_id", selected_country_id).execute()
+                all_leagues = ["All Leagues"] + [item["league"] for item in leagues_data.data]
+                selected_league_filter = st.selectbox("Filter by League", all_leagues)
+                league_filter_value = None if selected_league_filter == "All Leagues" else selected_league_filter
 
 
-        league_options = [item["league"] for item in leagues_data.data]
-        all_leagues.extend(league_options)
-        selected_league_filter = st.selectbox("Filter by League", all_leagues)
-        league_filter_value = None if selected_league_filter == "All Leagues" else selected_league_filter
         
         # Get matches from database
         try:
