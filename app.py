@@ -648,11 +648,13 @@ with col1:
     if supabase_client and use_database:
         st.write("📊 Select from Database or Enter Manually")
         
-        countries = [r["country"] for r in supabase_client.from_("leagues").select("country").execute().data if r.get("country")]
-        selected_country = st.selectbox("Filter by Country", sorted(set(countries)))
+        countries_data = supabase_client.from_("leagues").select("country_id").execute()
+        countries = sorted(set([r["country_id"] for r in countries_data.data if r.get("country_id")]))
+        selected_country = st.selectbox("Filter by Country", countries)
 
         all_leagues = ["All Leagues"]
-        leagues_data = supabase_client.from_("leagues").select("league").eq("country", selected_country).execute()
+
+        leagues_data = supabase_client.from_("leagues").select("league").eq("country_id", selected_country).execute()
         league_options = [item["league"] for item in leagues_data.data]
         all_leagues.extend(league_options)
         selected_league_filter = st.selectbox("Filter by League", all_leagues)
