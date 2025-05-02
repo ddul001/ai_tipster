@@ -659,7 +659,10 @@ with col1:
                 selected_country_id = selected_country_id[0]
 
                 # Replace these lines
-                leagues_data = supabase_client.from_("leagues").select("id, league").eq("country_id", selected_country_id).execute()
+                # Use the correct column names (league_id, league, country_id)
+                leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
+
+                # Create options dictionary with the correct column names
                 league_options = {"All Leagues": None}
                 league_options.update({f"{item['league']} (ID: {item['league_id']})": item['league_id'] for item in leagues_data.data})
                 selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
