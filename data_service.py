@@ -186,19 +186,14 @@ def get_matches(supabase, league=None, team=None, limit=50):
     Get matches from Supabase database with optional filters.
     """
     try:
-        # Build the base query with nested joins
         query = supabase.from_("matches").select(
             "*, home:teams!hometeam_id(team_name), away:teams!awayteam_id(team_name), league:leagues!league_id(league)"
         )
         
-        # Apply league filter if provided
+        # Apply league filter if provided - use league directly as the ID
         if league:
-            
-            if league_id:
-                query = query.eq("league_id", league_id)
-            else:
-                # If no matching league ID found, return empty DataFrame
-                return pd.DataFrame()
+            # The league parameter is already the ID from your UI selection
+            query = query.eq("league_id", league)
 
         # Apply team filter if provided
         if team:
