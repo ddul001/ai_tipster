@@ -193,7 +193,7 @@ def get_matches(supabase, league=None, team=None, limit=50):
         
         # Apply league filter if provided
         if league:
-            league_id = get_league_id_by_name(supabase, league)
+            
             if league_id:
                 query = query.eq("league_id", league_id)
             else:

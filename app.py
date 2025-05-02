@@ -658,11 +658,12 @@ with col1:
             if selected_country_id:
                 selected_country_id = selected_country_id[0]
 
-                leagues_data = supabase_client.from_("leagues").select("league").eq("country_id", selected_country_id).execute()
-                all_leagues = ["All Leagues"] + [item["league"] for item in leagues_data.data]
-                selected_league_filter = st.selectbox("Filter by League", all_leagues)
-                league_filter_value = None if selected_league_filter == "All Leagues" else selected_league_filter
-
+                # Replace these lines
+                leagues_data = supabase_client.from_("leagues").select("id, name").eq("country_id", selected_country_id).execute()
+                league_options = {"All Leagues": None}
+                league_options.update({f"{item['name']} (ID: {item['id']})": item['id'] for item in leagues_data.data})
+                selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
+                league_filter_value = league_options[selected_league_display]
 
         
         # Get matches from database
