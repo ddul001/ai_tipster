@@ -661,7 +661,7 @@ with col1:
                 # Replace these lines
                 leagues_data = supabase_client.from_("leagues").select("id, league").eq("country_id", selected_country_id).execute()
                 league_options = {"All Leagues": None}
-                league_options.update({f"{item['name']} (ID: {item['id']})": item['id'] for item in leagues_data.data})
+                league_options.update({f"{item['league']} (ID: {item['league_id']})": item['league_id'] for item in leagues_data.data})
                 selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
                 league_filter_value = league_options[selected_league_display]
 
