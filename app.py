@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # Get URL parameters (if any)
-query_params = st.experimental_get_query_params()
+query_params = st.query_params
 match_id_param = query_params.get("match_id", [None])[0]
 auto_analyze = query_params.get("analyze", ["false"])[0].lower() == "true"
 
@@ -418,6 +418,11 @@ with col1:
         # Check for URL parameter match_id
         if supabase_client and st.session_state.url_match_id and not st.session_state.url_params_processed:
             match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
+
+            # Debug output to see what data we're getting
+            st.sidebar.subheader("Debug: Match Data from URL Parameter")
+            st.sidebar.write(f"Requested match_id: {st.session_state.url_match_id}")
+            st.sidebar.json(match_data)
             
             if match_data:
                 # Set variables for the match
