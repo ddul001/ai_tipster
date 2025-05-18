@@ -11,3 +11,4 @@ supabase
 qdrant_client
 pysqlite3-binary
 openai>=1.0.0
+protobuf==3.20.3
