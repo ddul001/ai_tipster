@@ -153,6 +153,22 @@ def get_all_memories(memory, user_id, limit=20):
         return {"results": []}
 
 # Supabase data operations
+
+# --- New function to get country name by ID ---
+def get_country_name_by_id(supabase, country_id):
+    """Get country name from country_id"""
+    if not supabase or country_id is None:
+        return "Unknown Country"
+    try:
+        response = supabase.from_("countries").select("country").eq("country_id", country_id).limit(1).execute()
+        if response.data and len(response.data) > 0:
+            return response.data[0]["country"]
+        return "Unknown Country" # Return default if not found
+    except Exception as e:
+        # print(f"Error finding country name: {str(e)}") # Use app's logging
+        return "Unknown Country" # Return default on error
+# --- End of new function ---
+
 def get_team_id_by_name(supabase, team_name):
     """Get team_id from team_name"""
     try:
