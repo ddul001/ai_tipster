@@ -73,7 +73,7 @@ supabase_key = st.secrets.get("SUPABASE_KEY")
 
 def get_match_by_id(supabase_client, match_id):
     try:
-        response = supabase_client.from_("matches").select("*").eq("match_id", match_id).execute()
+        response = supabase_client.from_("matches").select("*").eq("match_id", match_id).execute()
         if not response.data:
             return None
 
