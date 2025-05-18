@@ -931,9 +931,6 @@ with col2:
             st.session_state.chat_history = []
             st.rerun()
 
-# Call the trigger function if needed
-if st.session_state.get("start_analysis", False):
-    trigger_analysis_if_needed()
 
  
 
