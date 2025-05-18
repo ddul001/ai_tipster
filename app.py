@@ -613,18 +613,18 @@ with col1:
                                     # Submit button
                                     submit_button = st.form_submit_button("Start Chat", type="primary", use_container_width=True)
                                     
-                                        if submit_button:
-                                            # Store analysis parameters in session state
-                                            st.session_state.match_to_analyze = {
-                                                "home_team": home_team,
-                                                "away_team": away_team, 
-                                                "league": league,
-                                                "match_date": match_date
-                                            }
-                                            # Set flag to trigger analysis on next rerun
-                                            st.session_state.start_analysis = True
-                                            # The rerun will happen automatically after form submission
-                                            generate_analysis_conversational(home_team, away_team, league, match_date)
+                                    if submit_button:
+                                        # Store analysis parameters in session state
+                                        st.session_state.match_to_analyze = {
+                                            "home_team": home_team,
+                                            "away_team": away_team, 
+                                            "league": league,
+                                            "match_date": match_date
+                                        }
+                                        # Set flag to trigger analysis on next rerun
+                                        st.session_state.start_analysis = True
+                                        # The rerun will happen automatically after form submission
+                                        generate_analysis_conversational(home_team, away_team, league, match_date)
                         else:
                             st.info("No matches found in database. Enter match details manually.")
                             manual_input = True
