@@ -465,57 +465,78 @@ with col1:
             st.sidebar.json(match_data)
             
             if match_data:
-                # Set variables for the match
+                # Extract all necessary data
                 home_team = match_data.get("home_team")
                 away_team = match_data.get("away_team")
                 match_date_str = match_data.get("match_date")
-                league = match_data.get("league_name") or "Premier League"
+                league = match_data.get("league_name") or "Unknown League"
+                country_id = match_data.get("country_id")
+                
+                # Get country name
+                country_name = "Unknown Country"
+                if country_id:
+                    country_response = supabase_client.from_("countries").select("country").eq("country_id", country_id).execute()
+                    if country_response.data:
+                        country_name = country_response.data[0].get("country")
                 
                 try:
                     match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
                 except:
                     match_date = datetime.now().date()
                 
-                # Store match info to pre-select in the interface
-                st.session_state.preselected_match = {
-                    "home_team": home_team,
-                    "away_team": away_team,
-                    "match_date": match_date,
-                    "league": league
-                }
+                # Display match info instead of selection UI
+                st.success("Match found from URL parameter!")
                 
-                # Set flag to indicate URL parameters have been processed
-                st.session_state.url_params_processed = True
+                # Display match details in a nicer format
+                st.markdown(f"### {home_team} vs {away_team}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Country:** {country_name}")
+                    st.write(f"**League:** {league}")
+                with col2:
+                    st.write(f"**Date:** {match_date.strftime('%d %B %Y')}")
+                
+                # Add an analyze button
+                if st.button("Analyze This Match", type="primary", use_container_width=True):
+                    st.session_state.chat_history = []
+                    st.session_state.analysis_in_progress = True
+                    st.session_state.analysis_chat = []
+                    st.session_state.first_load = True
+                    generate_analysis_conversational(home_team, away_team, league, match_date)
                 
                 # Auto-trigger analysis if requested
-                if st.session_state.url_auto_analyze:
+                if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
+                    st.session_state.analysis_triggered = True
                     generate_analysis_conversational(home_team, away_team, league, match_date)
-                    
-                # Display a notification
-                st.sidebar.success(f"Match loaded from URL: {home_team} vs {away_team}")
+                
+                # Skip the normal UI flow by using a condition
+                show_normal_ui = False
             else:
-                st.sidebar.warning(f"No match found with ID: {st.session_state.url_match_id}")
-                st.session_state.url_params_processed = True
+                show_normal_ui = True
+                st.warning(f"No match found with ID: {st.session_state.url_match_id}")
+            
+            # Only show the regular selection UI if no match from URL or match not found
+            if show_normal_ui:
+                # Your existing country selection code
+                countries_data = supabase_client.from_("countries").select("country_id, country").execute()
+                country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
+                
+                if country_dict:
         
-        # Fetch distinct countries from 'countries' table
-        countries_data = supabase_client.from_("countries").select("country_id, country").execute()
-        country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
+                    selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
+                    selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name]
+                    if selected_country_id:
+                        selected_country_id = selected_country_id[0]
         
-        if country_dict:
-            selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
-            selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name]
-            if selected_country_id:
-                selected_country_id = selected_country_id[0]
-
-                # Replace these lines
-                # Use the correct column names (league_id, league, country_id)
-                leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
-
-                # Create options dictionary with the correct column names
-                league_options = {"All Leagues": None}
-                league_options.update({f"{item['league']} (ID: {item['league_id']})": item['league_id'] for item in leagues_data.data})
-                selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
-                league_filter_value = league_options[selected_league_display]
+                        # Replace these lines
+                        # Use the correct column names (league_id, league, country_id)
+                        leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
+        
+                        # Create options dictionary with the correct column names
+                        league_options = {"All Leagues": None}
+                        league_options.update({f"{item['league']} (ID: {item['league_id']})": item['league_id'] for item in leagues_data.data})
+                        selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
+                        league_filter_value = league_options[selected_league_display]
 
         
         # Get matches from database
