@@ -13,6 +13,19 @@ st.set_page_config(
     layout="wide"
 )
 
+# Debug logging helper
+if "debug_logs" not in st.session_state:
+    st.session_state.debug_logs = []
+
+def log_debug(message):
+    """Add a timestamped debug message to the session log"""
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    st.session_state.debug_logs.append(f"{timestamp}: {message}")
+    if len(st.session_state.debug_logs) > 100:
+        st.session_state.debug_logs = st.session_state.debug_logs[-100:]
+    print(f"DEBUG: {timestamp}: {message}")  # Also print to console for server logs
+
 # Get URL parameters (if any)
 query_params = st.query_params
 match_id_param = query_params.get("match_id", [None])[0]
@@ -24,12 +37,11 @@ if "url_match_id" not in st.session_state:
     st.session_state.url_auto_analyze = auto_analyze
     st.session_state.url_params_processed = False
 
-
+# Initialize analysis state if not exists
 if "in_analysis_mode" not in st.session_state:
     st.session_state.in_analysis_mode = False
 
 import os
-
 from datetime import datetime
 from dotenv import load_dotenv
 import json
@@ -121,11 +133,14 @@ def summarize_analysis(text, max_length=300):
             summary += sentence + "."
         else:
             break
+    return summary
+
 
 # Function to generate analysis
 def generate_analysis(home_team, away_team, league, match_date):
     """Generate analysis for the specified match"""
     try:
+        log_debug(f"Starting generate_analysis for {home_team} vs {away_team}")
         match_details = f"{home_team} vs {away_team}"
         full_query = f"{match_details} {league} {match_date.strftime('%d %B %Y')}"
 
@@ -308,14 +323,21 @@ def generate_analysis(home_team, away_team, league, match_date):
             ANALYSIS:
             {analysis_for_context}
             """
+        
+        # Mark analysis as complete
+        st.session_state.analysis_in_progress = False
+        log_debug(f"Analysis completed for {home_team} vs {away_team}")
     
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
         st.error(traceback.format_exc())
+        st.session_state.analysis_in_progress = False
+        log_debug(f"Error in generate_analysis: {str(e)}")
 
 def generate_analysis_conversational(home_team, away_team, league, match_date):
     """Generate analysis for the specified match using a conversational approach"""
     try:
+        log_debug(f"Starting generate_analysis_conversational for {home_team} vs {away_team}")
         match_details = f"{home_team} vs {away_team}"
         full_query = f"{match_details} {league or 'Unknown League'} {match_date.strftime('%d %B %Y')}"
 
@@ -329,6 +351,7 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
         if supabase_client:
             exists, analysis_id = check_analysis_exists(supabase_client, home_team, away_team, match_date)
             if exists:
+                log_debug(f"Found existing analysis ID: {analysis_id}")
                 analysis_data = get_analysis_by_id(supabase_client, analysis_id)
                 if analysis_data:
                     parsed_content = parse_wordpress_analysis(analysis_data.get("content", ""))
@@ -341,10 +364,12 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
                     st.session_state.analysis_in_progress = False
                     return
 
+        log_debug("Processing news analysis")
         results = agents.process_football_news(full_query)
 
         db_insights = None
         if use_database and supabase_client:
+            log_debug("Processing database insights")
             db_insights = agents.process_database_insights(
                 match_data={
                     'home_team': home_team,
@@ -368,15 +393,65 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
         st.session_state.results = results
         st.session_state.match_info = {"match": match_details, "league": league, "date": match_date}
         st.session_state.analysis_in_progress = False
+        log_debug(f"Analysis conversational completed for {home_team} vs {away_team}")
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
         st.error(traceback.format_exc())
         st.session_state.analysis_in_progress = False
+        log_debug(f"Error in generate_analysis_conversational: {str(e)}")
 
 
+
+
+
+
+# Main State Initialization
+# Log initial state for debugging
+log_debug(f"Initial State - in_analysis_mode: {st.session_state.get('in_analysis_mode', False)}, " + 
+          f"start_analysis: {st.session_state.get('start_analysis', False)}, " +
+          f"analysis_in_progress: {st.session_state.get('analysis_in_progress', False)}")
+
+# Process URL parameters first (if not already processed)
+if supabase_client and st.session_state.url_match_id and not st.session_state.get("url_params_processed", False):
+    log_debug(f"Processing URL parameter match_id: {st.session_state.url_match_id}")
+    match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
+    
+    # Mark params as processed
+    st.session_state.url_params_processed = True
+    
+    if match_data:
+        # Extract match data
+        home_team = match_data.get("home_team")
+        away_team = match_data.get("away_team")
+        match_date_str = match_data.get("match_date")
+        league = match_data.get("league_name") or "Unknown League"
+        
+        # Parse date
+        try:
+            match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
+        except:
+            match_date = datetime.now().date()
+        
+        # Auto-analyze if requested in URL
+        if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
+            log_debug(f"Auto-analyzing from URL: {home_team} vs {away_team}")
+            st.session_state.match_to_analyze = {
+                "home_team": home_team,
+                "away_team": away_team, 
+                "league": league,
+                "match_date": match_date,
+                "from_url": True
+            }
+            st.session_state.in_analysis_mode = True
+            st.session_state.start_analysis = True
+            st.session_state.analysis_triggered = True
+            # Don't call rerun here, let the next check handle it
+
+# Check if we should start analysis based on session state
 if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.session_state:
     match_info = st.session_state.match_to_analyze
+    log_debug(f"Starting analysis from session state for {match_info.get('home_team')} vs {match_info.get('away_team')}")
     
     # Clear the flag
     st.session_state.start_analysis = False
@@ -391,13 +466,15 @@ if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.se
     if match_info.get("from_url", False):
         st.session_state.from_url_analysis = True
     
-    # Start the analysis
+    # Start the analysis - this is critical
     generate_analysis_conversational(
         match_info["home_team"], 
         match_info["away_team"], 
         match_info["league"], 
         match_info["match_date"]
     )
+
+
 
 
 # Sidebar configuration
@@ -472,6 +549,27 @@ with st.sidebar:
                 st.error(f"Error retrieving memories: {str(e)}")
     elif enable_memory and not openai_api_key:
         st.warning("API key required for persistent memory.")
+    
+    # Debug log viewer 
+    if st.checkbox("Show Debug Log"):
+        st.subheader("Debug Log")
+        for log in st.session_state.debug_logs:
+            st.text(log)
+        if st.button("Clear Debug Log"):
+            st.session_state.debug_logs = []
+            
+        # Also show session state
+        with st.expander("Session State"):
+            # Filter out large objects
+            filtered_state = {}
+            for key, value in st.session_state.items():
+                if key in ['debug_logs', 'results', 'chat_history', 'chat_context']:
+                    filtered_state[key] = f"[{type(value).__name__} - too large to display]"
+                else:
+                    filtered_state[key] = value
+            st.json(filtered_state)
+
+
 
 # Main content area
 col1, col2 = st.columns([2, 3])
@@ -479,8 +577,11 @@ col1, col2 = st.columns([2, 3])
 with col1:
     st.subheader("Match Details")
     
-    # First, check if we're already in analysis mode
-    if st.session_state.get("in_analysis_mode", False) or st.session_state.get("analysis_in_progress", False):
+    # First, check if we're already in analysis mode - make this check stronger
+    in_analysis = st.session_state.get("in_analysis_mode", False) or st.session_state.get("analysis_in_progress", False)
+    log_debug(f"Rendering main UI - in_analysis: {in_analysis}")
+    
+    if in_analysis:
         # Display current analysis info
         if "match_info" in st.session_state:
             match_info = st.session_state.match_info
@@ -495,6 +596,7 @@ with col1:
                 st.session_state.in_analysis_mode = False
                 st.session_state.from_url_analysis = False
                 st.session_state.analysis_in_progress = False
+                st.session_state.start_analysis = False
                 # Force page reload
                 st.rerun()
         else:
@@ -504,8 +606,8 @@ with col1:
         if supabase_client and use_database:
             st.write("📊 Select from Database or Enter Manually")
             
-            # Handle URL parameter
-            if supabase_client and st.session_state.url_match_id and not st.session_state.url_params_processed:
+            # Handle URL parameter match if not in analysis mode
+            if supabase_client and st.session_state.url_match_id and not st.session_state.get("url_params_processed", False):
                 match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
                 
                 # Debug output
@@ -549,7 +651,8 @@ with col1:
                     
                     # Add analyze button
                     if st.button("Analyze This Match", type="primary", use_container_width=True):
-                        # Use a container to hold all state for this analysis session
+                        log_debug(f"Analyze This Match button clicked for {home_team} vs {away_team}")
+                        # Store match info in session state
                         st.session_state.match_to_analyze = {
                             "home_team": home_team,
                             "away_team": away_team, 
@@ -557,14 +660,23 @@ with col1:
                             "match_date": match_date,
                             "from_url": True
                         }
-                        # Set analysis mode and trigger flag
+                        # Set analysis mode flags
                         st.session_state.in_analysis_mode = True
                         st.session_state.start_analysis = True
-                        # Force reload
+                        st.session_state.analysis_triggered = True
+                        
+                        # Start analysis directly before rerun to ensure it begins
+                        log_debug("Starting analysis immediately before rerun")
+                        generate_analysis_conversational(
+                            home_team, away_team, league, match_date
+                        )
+                        
+                        # Force reload to update UI
                         st.rerun()
                     
                     # Auto-analyze if requested
                     if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
+                        log_debug(f"Auto-analyze triggered for {home_team} vs {away_team}")
                         st.session_state.match_to_analyze = {
                             "home_team": home_team,
                             "away_team": away_team, 
@@ -575,6 +687,12 @@ with col1:
                         st.session_state.in_analysis_mode = True
                         st.session_state.start_analysis = True
                         st.session_state.analysis_triggered = True
+                        
+                        # Start analysis directly before rerun
+                        log_debug("Starting analysis immediately from auto-analyze trigger")
+                        generate_analysis_conversational(
+                            home_team, away_team, league, match_date
+                        )
                         st.rerun()
                     
                     # Don't show normal selection UI
@@ -657,6 +775,7 @@ with col1:
                                         submit_button = st.form_submit_button("Start Chat", type="primary", use_container_width=True)
                                         
                                         if submit_button:
+                                            log_debug(f"Form submitted for {home_team} vs {away_team}")
                                             # Store analysis parameters in session state
                                             st.session_state.match_to_analyze = {
                                                 "home_team": home_team,
@@ -667,6 +786,14 @@ with col1:
                                             # Set flag to trigger analysis on next rerun
                                             st.session_state.in_analysis_mode = True
                                             st.session_state.start_analysis = True
+                                            st.session_state.analysis_triggered = True
+                                            
+                                            # Start analysis directly
+                                            log_debug("Starting analysis from form submission")
+                                            generate_analysis_conversational(
+                                                home_team, away_team, league, match_date
+                                            )
+                                            st.rerun()
                             else:
                                 st.info("No matches found in database. Enter match details manually.")
                                 manual_input = True
@@ -675,6 +802,10 @@ with col1:
                             manual_input = True
         else:
             manual_input = True
+
+
+
+        
             
         # Manual input mode
         if not supabase_client or not use_database or ('manual_input' in locals() and manual_input):
@@ -698,6 +829,7 @@ with col1:
                         home_team = teams[0].strip()
                         away_team = teams[1].strip()
                         
+                        log_debug(f"Generate Analysis button clicked for {home_team} vs {away_team}")
                         # Store analysis parameters
                         st.session_state.match_to_analyze = {
                             "home_team": home_team,
@@ -708,6 +840,13 @@ with col1:
                         # Set analysis mode and trigger
                         st.session_state.in_analysis_mode = True
                         st.session_state.start_analysis = True
+                        st.session_state.analysis_triggered = True
+                        
+                        # Start analysis directly
+                        log_debug("Starting analysis from manual input")
+                        generate_analysis_conversational(
+                            home_team, away_team, league, match_date
+                        )
                         st.rerun()
                     else:
                         st.error("Please enter match details in the format 'Team A vs Team B'")
@@ -718,6 +857,7 @@ with col1:
 # This is the modified section for the right column (col2)
 # Replace your current col2 section with this code
 
+# Results area
 with col2:
     if "analysis_chat" in st.session_state:
         st.subheader("⚽ Match Analysis Chat")
@@ -737,7 +877,6 @@ with col2:
             match_info = st.session_state.match_info
             st.caption(f"{match_info['match']} | {match_info['league']} | {match_info['date'].strftime('%d %B %Y')}")
         
-
             if "results" in st.session_state:
                 tab1, tab2, tab3 = st.tabs(["Chat", "Analysis", "Betting"])
                 
@@ -809,7 +948,6 @@ with col2:
                                     
                                     if bet_data:
                                         # Sort by tier (if available) and then by expected value
-                                        # Sort by tier (if available) and then by expected value
                                         if any(bd.get("Tier") for bd in bet_data):
                                             # Convert tier to numeric for sorting (A=1, B=2, etc.)
                                             tier_map = {"A": 1, "B": 2, "C": 3, "D": 4}
@@ -848,8 +986,7 @@ with col2:
                                     st.info("No betting data available for this match.")
                             else:
                                 st.warning("Connect to Supabase to view betting information.")
-
-        # Display progress indicator while analysis is running
+                                # Display progress indicator while analysis is running
         if "analysis_in_progress" in st.session_state and st.session_state.analysis_in_progress:
             st.info("Analysis in progress... Please wait.")
         
@@ -887,15 +1024,6 @@ with col2:
                             # Enhanced analysis context with memory
                             enhanced_context = f"{st.session_state.chat_context}\n\nMEMORY CONTEXT:\n{memory_context}"
                             
-                            
-                            print("----- Before chat_with_analysis call -----")
-                            print("query:", chat_prompt)
-                            print("analysis_context:", enhanced_context)
-                            print("scraped_content:", st.session_state.results.get("scraped_content", {}))
-                            print("chat_history:", st.session_state.chat_history[:-1])
-                            print("---------------------------------------")
-
-
                             # Get response with memory-enhanced context
                             response = agents.chat_with_analysis(
                                 chat_prompt, 
@@ -930,9 +1058,6 @@ with col2:
         if st.button("Clear Chat History"):
             st.session_state.chat_history = []
             st.rerun()
-
-
- 
 
 # Footer
 st.markdown("---")
