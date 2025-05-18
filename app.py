@@ -24,6 +24,27 @@ if "url_match_id" not in st.session_state:
     st.session_state.url_auto_analyze = auto_analyze
     st.session_state.url_params_processed = False
 
+if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.session_state:
+    match_info = st.session_state.match_to_analyze
+    
+    # Clear the flag
+    st.session_state.start_analysis = False
+    
+    # Prepare analysis environment
+    st.session_state.chat_history = []
+    st.session_state.analysis_in_progress = True
+    st.session_state.analysis_chat = []
+    st.session_state.first_load = True
+    
+    # Start the analysis
+    generate_analysis_conversational(
+        match_info["home_team"], 
+        match_info["away_team"], 
+        match_info["league"], 
+        match_info["match_date"]
+    )
+
+
 import os
 
 from datetime import datetime
@@ -592,14 +613,18 @@ with col1:
                                     # Submit button
                                     submit_button = st.form_submit_button("Start Chat", type="primary", use_container_width=True)
                                     
-                                    if submit_button:
-                                        # Process the analysis
-                                        # Initialize chat history for the new analysis
-                                        st.session_state.chat_history = []
-                                        st.session_state.analysis_in_progress = True
-                                        st.session_state.analysis_chat = []
-                                        st.session_state.first_load = True
-                                        generate_analysis_conversational(home_team, away_team, league, match_date)
+                                        if submit_button:
+                                            # Store analysis parameters in session state
+                                            st.session_state.match_to_analyze = {
+                                                "home_team": home_team,
+                                                "away_team": away_team, 
+                                                "league": league,
+                                                "match_date": match_date
+                                            }
+                                            # Set flag to trigger analysis on next rerun
+                                            st.session_state.start_analysis = True
+                                            # The rerun will happen automatically after form submission
+                                            generate_analysis_conversational(home_team, away_team, league, match_date)
                         else:
                             st.info("No matches found in database. Enter match details manually.")
                             manual_input = True
