@@ -72,24 +72,12 @@ supabase_url = st.secrets.get("SUPABASE_URL")
 supabase_key = st.secrets.get("SUPABASE_KEY")
 
 def get_match_by_id(supabase_client, match_id):
-
-    """Fetch a match by its ID from the database and include team names"""
-
-    try:
-
-        # Get match data
-
+    try:
         response = supabase_client.from_("matches").select("*").eq("match_id", match_id).execute()
-
         if not response.data:
-
             return None
 
-            
-
         match_data = response.data[0]
-
-        
 
         # Get home team name
 
