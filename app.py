@@ -516,10 +516,19 @@ with col1:
                 ]
                 
                 # Pre-select the match from URL parameter if available
+                # Replace the existing pre-selection block with this:
                 if "preselected_match" in st.session_state and not st.session_state.get("url_match_shown", False):
                     pre = st.session_state.preselected_match
                     match_key = f"{pre['home_team']} vs {pre['away_team']} ({pre['match_date']})"
-                    preselected_index = match_options.index(match_key) if match_key in match_options else 0
+                    
+                    # Try to find by exact match first
+                    if match_key in match_options:
+                        preselected_index = match_options.index(match_key)
+                    else:
+                        # Try to find by team names if date format might be different
+                        matches = [i for i, opt in enumerate(match_options) 
+                                  if pre['home_team'] in opt and pre['away_team'] in opt]
+                        preselected_index = matches[0] if matches else 0
                     
                     selected_match = st.selectbox("Select Match from Database", match_options, index=preselected_index)
                     st.session_state.url_match_shown = True
