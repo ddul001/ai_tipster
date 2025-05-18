@@ -307,31 +307,43 @@ if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.se
 # This block runs after the analysis trigger block but before rendering UI.
 # It fetches match data from URL if present and not processed, and may set
 # 'start_analysis' if auto_analyze is true.
-if supabase_client and st.session_state.url_match_id and not st.session_state.get("url_params_processed", False):
-    log_debug(f"Processing URL parameter match_id: {st.session_state.url_match_id}")
-    match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
+# --- Handle and display match from URL if available and not yet analyzed ---
+# Check if match_from_url exists AND we haven't triggered analysis for it yet
+if supabase_client and st.session_state.get("match_from_url") and not st.session_state.get("analysis_triggered", False):
+    match_data_url = st.session_state.match_from_url
 
-    # Mark params as processed regardless of whether match was found
-    st.session_state.url_params_processed = True
+    st.success("Match found from URL parameter!")
+    st.markdown(f"### {match_data_url.get('home_team', 'Unknown')} vs {match_data_url.get('away_team', 'Unknown')}")
+    col_a, col_b = st.columns(2)
+    with col_a:
+         # Use get_country_name_by_id helper if available
+         country_name = get_country_name_by_id(supabase_client, match_data_url.get("country_id")) if supabase_client else "Unknown"
+         st.write(f"**Country:** {country_name}")
+         st.write(f"**League:** {match_data_url.get('league_name', 'Unknown League')}")
+    with col_b:
+         # Ensure match_date is a date object before formatting
+         match_date_obj = match_data_url.get('match_date')
+         if isinstance(match_date_obj, str):
+              try:
+                   match_date_obj = datetime.strptime(match_date_obj, '%Y-%m-%d').date()
+              except:
+                   match_date_obj = datetime.now().date()
 
-    if match_data:
-        log_debug(f"Match found from URL ID {st.session_state.url_match_id}: {match_data.get('home_team')} vs {match_data.get('away_team')}")
-        # Store the match data found from the URL
-        st.session_state.match_from_url = match_data
+         # Fix the isinstance check - datetime and datetime.date are classes not instances
+         if isinstance(match_date_obj, datetime) or isinstance(match_date_obj, datetime.date):
+              st.write(f"**Date:** {match_date_obj.strftime('%d %B %Y')}")
+         else:
+              st.write(f"**Date:** Unknown")
 
-        # Auto-analyze if requested in URL and analysis hasn't been triggered yet
-        if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
-            log_debug(f"Auto-analyze triggered from URL for {match_data.get('home_team')} vs {match_data.get('away_team')}")
-            st.session_state.match_to_analyze = st.session_state.match_from_url # Use the pre-fetched data
-            st.session_state.in_analysis_mode = True
-            st.session_state.start_analysis = True # Set the flag for the analysis execution block
-            st.session_state.analysis_triggered = True # Prevent re-triggering from URL params
-            # NO direct call to generate_analysis_conversational here
-            st.rerun() # Trigger the analysis execution block
-        # If auto_analyze is False, match_from_url is set, and the UI will handle displaying it with a button.
-
-    else:
-        st.sidebar.warning(f"No match found in database with ID: {st.session_state.url_match_id}")
+    # Button to trigger analysis for the URL match
+    if st.button("Analyze This Match", type="primary", use_container_width=True, key="analyze_url_match_button"):
+        log_debug(f"Analyze This Match button (from URL) clicked for {match_data_url.get('home_team')} vs {match_data_url.get('away_team')}")
+        # Store match info to analyze
+        st.session_state.match_to_analyze = match_data_url # Use the data already fetched
+        st.session_state.in_analysis_mode = True
+        st.session_state.start_analysis = True # Set the flag for the analysis trigger block
+        st.session_state.analysis_triggered = True # Mark as triggered for this URL match
+        st.rerun() # Trigger analysis on next run
 
 
 # Sidebar configuration
