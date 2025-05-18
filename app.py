@@ -355,7 +355,7 @@ with st.sidebar:
     # Data source selection
     st.subheader("Data Sources")
     use_news = st.checkbox("Include News Analysis", value=True)
-    use_database = st.checkbox("Include Database Statistics", value=False, 
+    use_database = st.checkbox("Include Database Statistics", value=True, 
                               help="Uses match data from Supabase database",
                               disabled=supabase_client is None)
     if use_database and supabase_client is None:
