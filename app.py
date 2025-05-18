@@ -193,6 +193,20 @@ def generate_analysis(home_team, away_team, league, match_date):
                 status.write("📊 Retrieving team statistics...")
                 team1_data = get_team_stats(supabase_client, home_team)
                 team2_data = get_team_stats(supabase_client, away_team)
+
+                if match_data:
+                    # Extract country_id directly from match data
+                    country_id = match_data.get("country_id")
+                    league_id = match_data.get("league_id")
+                    
+                    # Store for later use
+                    st.session_state.from_url_country_id = country_id
+                    st.session_state.from_url_league_id = league_id
+                    
+                    # Get the country name for this ID
+                    country_response = supabase_client.from_("countries").select("country").eq("country_id", country_id).execute()
+                    if country_response.data:
+                        st.session_state.from_url_country = country_response.data[0].get("country")
                 
                 # Get head-to-head data
                 # status.write("🏆 Retrieving head-to-head history...")
