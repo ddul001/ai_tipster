@@ -36,6 +36,10 @@ if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.se
     st.session_state.analysis_chat = []
     st.session_state.first_load = True
     
+    # Store the URL origin if it was from URL
+    if match_info.get("from_url", False):
+        st.session_state.from_url_analysis = True
+    
     # Start the analysis
     generate_analysis_conversational(
         match_info["home_team"], 
@@ -472,8 +476,11 @@ col1, col2 = st.columns([2, 3])
 with col1:
     st.subheader("Match Details")
     
+    # Check if we're in analysis mode from a URL parameter
+    in_url_analysis_mode = st.session_state.get("from_url_analysis", False) and st.session_state.get("analysis_in_progress", False)
+    
     # Option to select match from database if Supabase is connected
-    if supabase_client and use_database:
+    if supabase_client and use_database and not in_url_analysis_mode:
         st.write("📊 Select from Database or Enter Manually")
 
         # Default state - assume we'll show normal UI
@@ -526,16 +533,32 @@ with col1:
                 
                 # Add an analyze button
                 if st.button("Analyze This Match", type="primary", use_container_width=True):
-                    st.session_state.chat_history = []
-                    st.session_state.analysis_in_progress = True
-                    st.session_state.analysis_chat = []
-                    st.session_state.first_load = True
-                    generate_analysis_conversational(home_team, away_team, league, match_date)
+                    # Store match info in session state
+                    st.session_state.match_to_analyze = {
+                        "home_team": home_team,
+                        "away_team": away_team, 
+                        "league": league,
+                        "match_date": match_date,
+                        "from_url": True  # Flag that this came from URL
+                    }
+                    # Set flag to trigger analysis on next rerun
+                    st.session_state.start_analysis = True
+                    st.rerun()
                 
                 # Auto-trigger analysis if requested
                 if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
+                    # Store match info in session state
+                    st.session_state.match_to_analyze = {
+                        "home_team": home_team,
+                        "away_team": away_team, 
+                        "league": league,
+                        "match_date": match_date,
+                        "from_url": True  # Flag that this came from URL
+                    }
+                    # Set flag to trigger analysis on next rerun
+                    st.session_state.start_analysis = True
                     st.session_state.analysis_triggered = True
-                    generate_analysis_conversational(home_team, away_team, league, match_date)
+                    st.rerun()
                 
                 # Skip the normal UI flow
                 show_normal_ui = False
@@ -624,19 +647,29 @@ with col1:
                                         # Set flag to trigger analysis on next rerun
                                         st.session_state.start_analysis = True
                                         # The rerun will happen automatically after form submission
-                                        generate_analysis_conversational(home_team, away_team, league, match_date)
                         else:
                             st.info("No matches found in database. Enter match details manually.")
                             manual_input = True
                     except Exception as e:
                         st.error(f"Error loading matches: {str(e)}")
                         manual_input = True
+    # Show current analysis details if in URL analysis mode
+    elif in_url_analysis_mode:
+        # Display match info for the current analysis
+        if "match_info" in st.session_state:
+            match_info = st.session_state.match_info
+            st.success("Analysis in progress...")
+            st.markdown(f"### {match_info.get('match')}")
+            st.write(f"**League:** {match_info.get('league')}")
+            st.write(f"**Date:** {match_info.get('date').strftime('%d %B %Y')}")
+        else:
+            st.info("Analysis is being generated...")
     else:
         # Manual input mode
         manual_input = True
     
     # Manual input mode
-    if not supabase_client or not use_database or ('manual_input' in locals() and manual_input):
+    if (not supabase_client or not use_database or ('manual_input' in locals() and manual_input)) and not in_url_analysis_mode:
         match_details = st.text_input(
             "Enter match details:",
             value="Manchester United vs Liverpool",
@@ -657,13 +690,17 @@ with col1:
                     teams = match_details.split(" vs ")
                     home_team = teams[0].strip()
                     away_team = teams[1].strip()
-                    #generate_analysis(home_team, away_team, league, match_date)
-                    # Initialize or clear analysis chat
-                    st.session_state.analysis_chat = []
-                    st.session_state.analysis_in_progress = False
                     
-                    # Call conversational analysis function
-                    #generate_analysis_conversational(home_team, away_team, league, match_date)
+                    # Store analysis parameters in session state
+                    st.session_state.match_to_analyze = {
+                        "home_team": home_team,
+                        "away_team": away_team, 
+                        "league": league,
+                        "match_date": match_date
+                    }
+                    # Set flag to trigger analysis on next rerun
+                    st.session_state.start_analysis = True
+                    st.rerun()
                 else:
                     st.error("Please enter match details in the format 'Team A vs Team B'")
             else:
