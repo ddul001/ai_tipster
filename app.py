@@ -79,13 +79,12 @@ def get_match_by_id(supabase_client, match_id):
         match_data = response.data[0]
         home_team_id = match_data.get("hometeam_id")
         home_team_response = supabase_client.from_("teams").select("team_name").eq("team_id", home_team_id).execute()
-        
         if home_team_response.data:
-            match_data["home_team"] = home_team_response.data[0].get("team_name")
-        else:
-            match_data["home_team"] = "Unknown Home Team"
-
-        away_team_id = match_data.get("awayteam_id")
+            match_data["home_team"] = home_team_response.data[0].get("team_name")
+        else:
+            match_data["home_team"] = "Unknown Home Team"
+            
+        away_team_id = match_data.get("awayteam_id")
         away_team_response = supabase_client.from_("teams").select("team_name").eq("team_id", away_team_id).execute()
         if away_team_response.data:
             match_data["away_team"] = away_team_response.data[0].get("team_name")
