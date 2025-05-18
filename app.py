@@ -520,6 +520,9 @@ with col1:
                 if "preselected_match" in st.session_state and not st.session_state.get("url_match_shown", False):
                     pre = st.session_state.preselected_match
                     match_key = f"{pre['home_team']} vs {pre['away_team']} ({pre['match_date']})"
+
+                    print(f"DEBUG: Looking for match: {match_key}")
+                    print(f"DEBUG: Available match options: {match_options}")
                     
                     # Try to find by exact match first
                     if match_key in match_options:
