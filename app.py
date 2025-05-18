@@ -24,30 +24,9 @@ if "url_match_id" not in st.session_state:
     st.session_state.url_auto_analyze = auto_analyze
     st.session_state.url_params_processed = False
 
-if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.session_state:
-    match_info = st.session_state.match_to_analyze
-    
-    # Clear the flag
-    st.session_state.start_analysis = False
-    
-    # Prepare analysis environment
-    st.session_state.chat_history = []
-    st.session_state.analysis_in_progress = True
-    st.session_state.analysis_chat = []
-    st.session_state.first_load = True
-    
-    # Store the URL origin if it was from URL
-    if match_info.get("from_url", False):
-        st.session_state.from_url_analysis = True
-    
-    # Start the analysis
-    generate_analysis_conversational(
-        match_info["home_team"], 
-        match_info["away_team"], 
-        match_info["league"], 
-        match_info["match_date"]
-    )
 
+if "in_analysis_mode" not in st.session_state:
+    st.session_state.in_analysis_mode = False
 
 import os
 
@@ -396,6 +375,30 @@ def generate_analysis_conversational(home_team, away_team, league, match_date):
         st.session_state.analysis_in_progress = False
 
 
+if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.session_state:
+    match_info = st.session_state.match_to_analyze
+    
+    # Clear the flag
+    st.session_state.start_analysis = False
+    
+    # Prepare analysis environment
+    st.session_state.chat_history = []
+    st.session_state.analysis_in_progress = True
+    st.session_state.analysis_chat = []
+    st.session_state.first_load = True
+    
+    # Store the URL origin if it was from URL
+    if match_info.get("from_url", False):
+        st.session_state.from_url_analysis = True
+    
+    # Start the analysis
+    generate_analysis_conversational(
+        match_info["home_team"], 
+        match_info["away_team"], 
+        match_info["league"], 
+        match_info["match_date"]
+    )
+
 
 # Sidebar configuration
 with st.sidebar:
@@ -476,235 +479,240 @@ col1, col2 = st.columns([2, 3])
 with col1:
     st.subheader("Match Details")
     
-    # Check if we're in analysis mode from a URL parameter
-    in_url_analysis_mode = st.session_state.get("from_url_analysis", False) and st.session_state.get("analysis_in_progress", False)
-    
-    # Option to select match from database if Supabase is connected
-    if supabase_client and use_database and not in_url_analysis_mode:
-        st.write("📊 Select from Database or Enter Manually")
-
-        # Default state - assume we'll show normal UI
-        show_normal_ui = True
-        league_filter_value = None  # Default value
-
-        # Check for URL parameter match_id
-        if supabase_client and st.session_state.url_match_id and not st.session_state.url_params_processed:
-            match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
-
-            # Debug output to see what data we're getting
-            st.sidebar.subheader("Debug: Match Data from URL Parameter")
-            st.sidebar.write(f"Requested match_id: {st.session_state.url_match_id}")
-            st.sidebar.json(match_data)
-            
-            # Mark params as processed
-            st.session_state.url_params_processed = True
-            
-            if match_data:
-                # Extract all necessary data
-                home_team = match_data.get("home_team")
-                away_team = match_data.get("away_team")
-                match_date_str = match_data.get("match_date")
-                league = match_data.get("league_name") or "Unknown League"
-                country_id = match_data.get("country_id")
-                
-                # Get country name
-                country_name = "Unknown Country"
-                if country_id:
-                    country_response = supabase_client.from_("countries").select("country").eq("country_id", country_id).execute()
-                    if country_response.data:
-                        country_name = country_response.data[0].get("country")
-                
-                try:
-                    match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
-                except:
-                    match_date = datetime.now().date()
-                
-                # Display match info instead of selection UI
-                st.success("Match found from URL parameter!")
-                
-                # Display match details in a nicer format
-                st.markdown(f"### {home_team} vs {away_team}")
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.write(f"**Country:** {country_name}")
-                    st.write(f"**League:** {league}")
-                with col_b:
-                    st.write(f"**Date:** {match_date.strftime('%d %B %Y')}")
-                
-                # Add an analyze button
-                if st.button("Analyze This Match", type="primary", use_container_width=True):
-                    # Store match info in session state
-                    st.session_state.match_to_analyze = {
-                        "home_team": home_team,
-                        "away_team": away_team, 
-                        "league": league,
-                        "match_date": match_date,
-                        "from_url": True  # Flag that this came from URL
-                    }
-                    # Set flag to trigger analysis on next rerun
-                    st.session_state.start_analysis = True
-                    st.rerun()
-                
-                # Auto-trigger analysis if requested
-                if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
-                    # Store match info in session state
-                    st.session_state.match_to_analyze = {
-                        "home_team": home_team,
-                        "away_team": away_team, 
-                        "league": league,
-                        "match_date": match_date,
-                        "from_url": True  # Flag that this came from URL
-                    }
-                    # Set flag to trigger analysis on next rerun
-                    st.session_state.start_analysis = True
-                    st.session_state.analysis_triggered = True
-                    st.rerun()
-                
-                # Skip the normal UI flow
-                show_normal_ui = False
-            else:
-                st.warning(f"No match found with ID: {st.session_state.url_match_id}")
-
-        # Only show regular selection UI if we should
-        if show_normal_ui:
-            # Country selection
-            countries_data = supabase_client.from_("countries").select("country_id, country").execute()
-            country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
-            
-            if country_dict:
-                selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
-                selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name]
-                if selected_country_id:
-                    selected_country_id = selected_country_id[0]
-    
-                    # League selection
-                    leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
-                    league_options = {"All Leagues": None}
-                    league_options.update({f"{item['league']}": item['league_id'] for item in leagues_data.data})
-                    selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
-                    league_filter_value = league_options[selected_league_display]
-    
-                    # Get matches for the selected league
-                    try:
-                        matches_df = get_matches(supabase_client, league=league_filter_value)
-                        
-                        if not matches_df.empty:
-                            # Format matches for selection
-                            match_options = ["Select a match..."] + [
-                                f"{row['home_team']} vs {row['away_team']} ({row['match_date']})"
-                                for _, row in matches_df.iterrows()
-                            ]
-                            
-                            selected_match = st.selectbox("Select Match from Database", match_options)
-                            
-                            # If a match is selected from database
-                            if selected_match != "Select a match...":
-                                # Extract teams and date from selection
-                                parts = selected_match.split(' vs ')
-                                home_team = parts[0]
-                                remaining = parts[1].split(' (')
-                                away_team = remaining[0]
-                                match_date_str = remaining[1].rstrip(')')
-                                
-                                # Get league from dataframe
-                                match_row = matches_df[
-                                    (matches_df['home_team'] == home_team) & 
-                                    (matches_df['away_team'] == away_team)
-                                ]
-                                
-                                if not match_row.empty:
-                                    # Get league_name or fall back to league_name if available, otherwise use filter or default
-                                    if 'league_name' in match_row.columns:
-                                        selected_league = match_row['league_name'].values[0]
-                                    else:
-                                        selected_league = league_filter_value or "Premier League"
-                                else:
-                                    selected_league = league_filter_value or "Premier League"
-                                
-                                # Set match date
-                                try:
-                                    match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
-                                except:
-                                    match_date = datetime.now().date()
-                                
-                                # Display form with pre-filled values
-                                with st.form("match_details_form"):
-                                    st.write(f"Selected: **{home_team} vs {away_team}**")
-                                    league = selected_league
-                                    match_date = st.date_input("Match Date", value=match_date)
-                                    
-                                    # Submit button
-                                    submit_button = st.form_submit_button("Start Chat", type="primary", use_container_width=True)
-                                    
-                                    if submit_button:
-                                        # Store analysis parameters in session state
-                                        st.session_state.match_to_analyze = {
-                                            "home_team": home_team,
-                                            "away_team": away_team, 
-                                            "league": league,
-                                            "match_date": match_date
-                                        }
-                                        # Set flag to trigger analysis on next rerun
-                                        st.session_state.start_analysis = True
-                                        # The rerun will happen automatically after form submission
-                        else:
-                            st.info("No matches found in database. Enter match details manually.")
-                            manual_input = True
-                    except Exception as e:
-                        st.error(f"Error loading matches: {str(e)}")
-                        manual_input = True
-    # Show current analysis details if in URL analysis mode
-    elif in_url_analysis_mode:
-        # Display match info for the current analysis
+    # First, check if we're already in analysis mode
+    if st.session_state.get("in_analysis_mode", False) or st.session_state.get("analysis_in_progress", False):
+        # Display current analysis info
         if "match_info" in st.session_state:
             match_info = st.session_state.match_info
             st.success("Analysis in progress...")
             st.markdown(f"### {match_info.get('match')}")
             st.write(f"**League:** {match_info.get('league')}")
             st.write(f"**Date:** {match_info.get('date').strftime('%d %B %Y')}")
+            
+            # Add button to exit analysis mode
+            if st.button("Select Different Match", type="secondary"):
+                # Reset all analysis-related state
+                st.session_state.in_analysis_mode = False
+                st.session_state.from_url_analysis = False
+                st.session_state.analysis_in_progress = False
+                # Force page reload
+                st.rerun()
         else:
-            st.info("Analysis is being generated...")
+            st.info("Preparing analysis...")
     else:
-        # Manual input mode
-        manual_input = True
-    
-    # Manual input mode
-    if (not supabase_client or not use_database or ('manual_input' in locals() and manual_input)) and not in_url_analysis_mode:
-        match_details = st.text_input(
-            "Enter match details:",
-            value="Manchester United vs Liverpool",
-            help="Enter team names or specific match (e.g., Arsenal vs Chelsea)"
-        )
-        
-        league = st.selectbox(
-            "League",
-            ["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1", "Champions League", "Other"]
-        )
-        
-        match_date = st.date_input("Match Date")
-        
-        if st.button("Generate Analysis", type="primary", use_container_width=True):
-            if match_details:
-                # Parse teams from match details
-                if " vs " in match_details:
-                    teams = match_details.split(" vs ")
-                    home_team = teams[0].strip()
-                    away_team = teams[1].strip()
+        # Not in analysis mode - show selection UI
+        if supabase_client and use_database:
+            st.write("📊 Select from Database or Enter Manually")
+            
+            # Handle URL parameter
+            if supabase_client and st.session_state.url_match_id and not st.session_state.url_params_processed:
+                match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
+                
+                # Debug output
+                st.sidebar.subheader("Debug: Match Data from URL Parameter")
+                st.sidebar.write(f"Requested match_id: {st.session_state.url_match_id}")
+                st.sidebar.json(match_data)
+                
+                # Mark params as processed
+                st.session_state.url_params_processed = True
+                
+                if match_data:
+                    # Extract match data
+                    home_team = match_data.get("home_team")
+                    away_team = match_data.get("away_team")
+                    match_date_str = match_data.get("match_date")
+                    league = match_data.get("league_name") or "Unknown League"
+                    country_id = match_data.get("country_id")
                     
-                    # Store analysis parameters in session state
-                    st.session_state.match_to_analyze = {
-                        "home_team": home_team,
-                        "away_team": away_team, 
-                        "league": league,
-                        "match_date": match_date
-                    }
-                    # Set flag to trigger analysis on next rerun
-                    st.session_state.start_analysis = True
-                    st.rerun()
+                    # Get country name
+                    country_name = "Unknown Country"
+                    if country_id:
+                        country_response = supabase_client.from_("countries").select("country").eq("country_id", country_id).execute()
+                        if country_response.data:
+                            country_name = country_response.data[0].get("country")
+                    
+                    # Parse date
+                    try:
+                        match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
+                    except:
+                        match_date = datetime.now().date()
+                    
+                    # Show match details
+                    st.success("Match found from URL parameter!")
+                    st.markdown(f"### {home_team} vs {away_team}")
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.write(f"**Country:** {country_name}")
+                        st.write(f"**League:** {league}")
+                    with col_b:
+                        st.write(f"**Date:** {match_date.strftime('%d %B %Y')}")
+                    
+                    # Add analyze button
+                    if st.button("Analyze This Match", type="primary", use_container_width=True):
+                        # Use a container to hold all state for this analysis session
+                        st.session_state.match_to_analyze = {
+                            "home_team": home_team,
+                            "away_team": away_team, 
+                            "league": league,
+                            "match_date": match_date,
+                            "from_url": True
+                        }
+                        # Set analysis mode and trigger flag
+                        st.session_state.in_analysis_mode = True
+                        st.session_state.start_analysis = True
+                        # Force reload
+                        st.rerun()
+                    
+                    # Auto-analyze if requested
+                    if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
+                        st.session_state.match_to_analyze = {
+                            "home_team": home_team,
+                            "away_team": away_team, 
+                            "league": league,
+                            "match_date": match_date,
+                            "from_url": True
+                        }
+                        st.session_state.in_analysis_mode = True
+                        st.session_state.start_analysis = True
+                        st.session_state.analysis_triggered = True
+                        st.rerun()
+                    
+                    # Don't show normal selection UI
+                    show_normal_ui = False
                 else:
-                    st.error("Please enter match details in the format 'Team A vs Team B'")
+                    st.warning(f"No match found with ID: {st.session_state.url_match_id}")
+                    show_normal_ui = True
             else:
-                st.error("Please enter match details!")
+                show_normal_ui = True
+                
+            # Show normal match selection UI
+            if show_normal_ui:
+                # Country selection
+                countries_data = supabase_client.from_("countries").select("country_id, country").execute()
+                country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
+                
+                if country_dict:
+                    selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
+                    selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name]
+                    if selected_country_id:
+                        selected_country_id = selected_country_id[0]
+        
+                        # League selection
+                        leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
+                        league_options = {"All Leagues": None}
+                        league_options.update({f"{item['league']}": item['league_id'] for item in leagues_data.data})
+                        selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
+                        league_filter_value = league_options[selected_league_display]
+        
+                        # Get matches for the selected league
+                        try:
+                            matches_df = get_matches(supabase_client, league=league_filter_value)
+                            
+                            if not matches_df.empty:
+                                # Format matches for selection
+                                match_options = ["Select a match..."] + [
+                                    f"{row['home_team']} vs {row['away_team']} ({row['match_date']})"
+                                    for _, row in matches_df.iterrows()
+                                ]
+                                
+                                selected_match = st.selectbox("Select Match from Database", match_options)
+                                
+                                # If a match is selected from database
+                                if selected_match != "Select a match...":
+                                    # Extract teams and date from selection
+                                    parts = selected_match.split(' vs ')
+                                    home_team = parts[0]
+                                    remaining = parts[1].split(' (')
+                                    away_team = remaining[0]
+                                    match_date_str = remaining[1].rstrip(')')
+                                    
+                                    # Get league from dataframe
+                                    match_row = matches_df[
+                                        (matches_df['home_team'] == home_team) & 
+                                        (matches_df['away_team'] == away_team)
+                                    ]
+                                    
+                                    if not match_row.empty:
+                                        # Get league_name or fall back to league_name if available, otherwise use filter or default
+                                        if 'league_name' in match_row.columns:
+                                            selected_league = match_row['league_name'].values[0]
+                                        else:
+                                            selected_league = league_filter_value or "Premier League"
+                                    else:
+                                        selected_league = league_filter_value or "Premier League"
+                                    
+                                    # Set match date
+                                    try:
+                                        match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
+                                    except:
+                                        match_date = datetime.now().date()
+                                    
+                                    # Display form with pre-filled values
+                                    with st.form("match_details_form"):
+                                        st.write(f"Selected: **{home_team} vs {away_team}**")
+                                        league = selected_league
+                                        match_date = st.date_input("Match Date", value=match_date)
+                                        
+                                        # Submit button
+                                        submit_button = st.form_submit_button("Start Chat", type="primary", use_container_width=True)
+                                        
+                                        if submit_button:
+                                            # Store analysis parameters in session state
+                                            st.session_state.match_to_analyze = {
+                                                "home_team": home_team,
+                                                "away_team": away_team, 
+                                                "league": league,
+                                                "match_date": match_date
+                                            }
+                                            # Set flag to trigger analysis on next rerun
+                                            st.session_state.in_analysis_mode = True
+                                            st.session_state.start_analysis = True
+                            else:
+                                st.info("No matches found in database. Enter match details manually.")
+                                manual_input = True
+                        except Exception as e:
+                            st.error(f"Error loading matches: {str(e)}")
+                            manual_input = True
+        else:
+            manual_input = True
+            
+        # Manual input mode
+        if not supabase_client or not use_database or ('manual_input' in locals() and manual_input):
+            match_details = st.text_input(
+                "Enter match details:",
+                value="Manchester United vs Liverpool",
+                help="Enter team names or specific match (e.g., Arsenal vs Chelsea)"
+            )
+            
+            league = st.selectbox(
+                "League",
+                ["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1", "Champions League", "Other"]
+            )
+            
+            match_date = st.date_input("Match Date")
+            
+            if st.button("Generate Analysis", type="primary", use_container_width=True):
+                if match_details:
+                    if " vs " in match_details:
+                        teams = match_details.split(" vs ")
+                        home_team = teams[0].strip()
+                        away_team = teams[1].strip()
+                        
+                        # Store analysis parameters
+                        st.session_state.match_to_analyze = {
+                            "home_team": home_team,
+                            "away_team": away_team, 
+                            "league": league,
+                            "match_date": match_date
+                        }
+                        # Set analysis mode and trigger
+                        st.session_state.in_analysis_mode = True
+                        st.session_state.start_analysis = True
+                        st.rerun()
+                    else:
+                        st.error("Please enter match details in the format 'Team A vs Team B'")
+                else:
+                    st.error("Please enter match details!")
 
 # Results area
 # This is the modified section for the right column (col2)
@@ -923,6 +931,9 @@ with col2:
             st.session_state.chat_history = []
             st.rerun()
 
+# Call the trigger function if needed
+if st.session_state.get("start_analysis", False):
+    trigger_analysis_if_needed()
 
  
 
