@@ -530,74 +530,103 @@ with col1:
         else: # Show normal selection (database or manual)
             log_debug("Showing normal selection UI")
             # --- Database Selection (if enabled and connected) ---
+            # --- Database Selection (if enabled and connected) ---
             if supabase_client and use_database:
                 st.write("📊 Select from Database or Enter Manually")
-
+            
                 try:
                     countries_data = supabase_client.from_("countries").select("country_id, country").execute()
                     country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
-
+            
                     if country_dict:
                         selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()), key="country_select")
-                        selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name][0] # Assuming unique names
-
-                        leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
-                        league_options = {"All Leagues": None}
-                        league_options.update({f"{item['league']}": item['league_id'] for item in leagues_data.data})
-                        selected_league_display = st.selectbox("Filter by League", list(league_options.keys()), key="league_select")
-                        league_filter_value = league_options[selected_league_display]
-
-                        matches_df = get_matches(supabase_client, league=league_filter_value)
-
-                        if not matches_df.empty:
-                            match_options = ["Select a match..."] + [
-                                f"{row['home_team']} vs {row['away_team']} ({row['match_date']})"
-                                for _, row in matches_df.iterrows()
-                            ]
-
-                            selected_match_display = st.selectbox("Select Match from Database", match_options, key="match_select_db")
-
-                            # If a match is selected from database dropdown
-                            if selected_match_display != "Select a match...":
-                                # Find the selected row in the dataframe
-                                selected_match_row = matches_df[matches_df.apply(lambda row: f"{row['home_team']} vs {row['away_team']} ({row['match_date']})" == selected_match_display, axis=1)].iloc[0]
-
-                                home_team_db = selected_match_row['home_team']
-                                away_team_db = selected_match_row['away_team']
-                                match_date_str_db = selected_match_row['match_date']
-                                league_name_db = selected_match_row.get('league_name', selected_league_display) # Prefer league_name if available
-
+                        
+                        # Find the country ID more safely with better error handling
+                        selected_country_id = None
+                        for k, v in country_dict.items():
+                            if v == selected_country_name:
+                                selected_country_id = k
+                                break
+                        
+                        if selected_country_id is not None:
+                            # Only proceed if we have a valid country ID
+                            try:
+                                # Get leagues for the selected country
+                                leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
+                                league_options = {"All Leagues": None}
+                                league_options.update({f"{item['league']}": item['league_id'] for item in leagues_data.data if 'league' in item})
+                                
+                                selected_league_display = st.selectbox("Filter by League", list(league_options.keys()), key="league_select")
+                                league_filter_value = league_options[selected_league_display]
+            
                                 try:
-                                    match_date_db = datetime.strptime(match_date_str_db, '%Y-%m-%d').date()
-                                except:
-                                     match_date_db = datetime.now().date() # Fallback
-
-                                # Display form with pre-filled values
-                                with st.form("db_match_details_form"): # Use a unique key for the form
-                                    st.write(f"Selected: **{home_team_db} vs {away_team_db}**")
-                                    #league = selected_league_display # Keep league from dropdown
-                                    match_date_input_db = st.date_input("Match Date", value=match_date_db, key="date_input_db") # Allow date override
-
-                                    submit_button_db = st.form_submit_button("Start Analysis", type="primary", use_container_width=True)
-
-                                    if submit_button_db:
-                                        log_debug(f"Database selection form submitted for {home_team_db} vs {away_team_db}")
-                                        # Store analysis parameters in session state
-                                        st.session_state.match_to_analyze = {
-                                            "home_team": home_team_db,
-                                            "away_team": away_team_db,
-                                            "league": league_name_db, # Use league name
-                                            "match_date": match_date_input_db # Use date from input
-                                        }
-                                        # Set flags to trigger analysis on next rerun
-                                        st.session_state.in_analysis_mode = True
-                                        st.session_state.start_analysis = True
-                                        st.session_state.analysis_triggered = True # Mark as triggered
-                                        st.rerun()
-
+                                    matches_df = get_matches(supabase_client, league=league_filter_value)
+                                    
+                                    if not matches_df.empty:
+                                        match_options = ["Select a match..."] + [
+                                            f"{row['home_team']} vs {row['away_team']} ({row['match_date']})"
+                                            for _, row in matches_df.iterrows()
+                                        ]
+            
+                                        selected_match_display = st.selectbox("Select Match from Database", match_options, key="match_select_db")
+            
+                                        # If a match is selected from database dropdown
+                                        if selected_match_display != "Select a match...":
+                                            # Find the selected row in the dataframe - with error handling
+                                            filtered_rows = matches_df[matches_df.apply(lambda row: f"{row['home_team']} vs {row['away_team']} ({row['match_date']})" == selected_match_display, axis=1)]
+                                            
+                                            if not filtered_rows.empty:
+                                                selected_match_row = filtered_rows.iloc[0]
+                                                
+                                                home_team_db = selected_match_row['home_team']
+                                                away_team_db = selected_match_row['away_team']
+                                                match_date_str_db = selected_match_row['match_date']
+                                                # Get league name with fallback options
+                                                league_name_db = selected_match_row.get('league_name', selected_league_display if selected_league_display != "All Leagues" else "Unknown League")
+            
+                                                try:
+                                                    match_date_db = datetime.strptime(match_date_str_db, '%Y-%m-%d').date()
+                                                except:
+                                                    match_date_db = datetime.now().date() # Fallback
+                                                
+                                                # Display form with pre-filled values
+                                                with st.form("db_match_details_form"):
+                                                    st.write(f"Selected: **{home_team_db} vs {away_team_db}**")
+                                                    match_date_input_db = st.date_input("Match Date", value=match_date_db, key="date_input_db")
+            
+                                                    submit_button_db = st.form_submit_button("Start Analysis", type="primary", use_container_width=True)
+            
+                                                    if submit_button_db:
+                                                        log_debug(f"Database selection form submitted for {home_team_db} vs {away_team_db}")
+                                                        # Store analysis parameters in session state
+                                                        st.session_state.match_to_analyze = {
+                                                            "home_team": home_team_db,
+                                                            "away_team": away_team_db,
+                                                            "league": league_name_db,
+                                                            "match_date": match_date_input_db
+                                                        }
+                                                        # Set flags to trigger analysis on next rerun
+                                                        st.session_state.in_analysis_mode = True
+                                                        st.session_state.start_analysis = True
+                                                        st.session_state.analysis_triggered = True
+                                                        st.rerun()
+                                            else:
+                                                st.error("Error: Could not find the selected match in database.")
+                                                manual_input_fallback = True
+                                    else:
+                                        st.info(f"No matches found for '{selected_league_display}' in {selected_country_name}. Enter match details manually.")
+                                        manual_input_fallback = True
+                                except Exception as e:
+                                    st.error(f"Error loading matches: {str(e)}")
+                                    st.error(traceback.format_exc())
+                                    manual_input_fallback = True
+                            except Exception as e:
+                                st.error(f"Error loading leagues: {str(e)}")
+                                st.error(traceback.format_exc())
+                                manual_input_fallback = True
                         else:
-                             st.info(f"No matches found for '{selected_league_display}' in {selected_country_name}. Enter match details manually.")
-                             manual_input_fallback = True
+                            st.warning(f"Could not find ID for country '{selected_country_name}'. Please try another selection.")
+                            manual_input_fallback = True
                     else:
                         st.warning("No countries available in the database.")
                         manual_input_fallback = True
