@@ -85,21 +85,21 @@ def get_match_by_id(supabase_client, match_id):
             match_data["home_team"] = "Unknown Home Team"
             
         away_team_id = match_data.get("awayteam_id")
-        away_team_response = supabase_client.from_("teams").select("team_name").eq("team_id", away_team_id).execute()
-        if away_team_response.data:
-            match_data["away_team"] = away_team_response.data[0].get("team_name")
-        else:
-            match_data["away_team"] = "Unknown Away Team"
-
+        away_team_response = supabase_client.from_("teams").select("team_name").eq("team_id", away_team_id).execute()
+        if away_team_response.data:
+            match_data["away_team"] = away_team_response.data[0].get("team_name")
+        else:
+            match_data["away_team"] = "Unknown Away Team"
+        
         league_id = match_data.get("league_id")
-        league_response = supabase_client.from_("leagues").select("league").eq("league_id", league_id).execute()
-        if league_response.data:
-            match_data["league_name"] = league_response.data[0].get("league")
-        return match_data
-    except Exception as e:
-        st.error(f"Error fetching match by ID: {str(e)}")
-        return None
-
+        league_response = supabase_client.from_("leagues").select("league").eq("league_id", league_id).execute()
+        if league_response.data:
+            match_data["league_name"] = league_response.data[0].get("league")
+        return match_data
+    except Exception as e:
+        st.error(f"Error fetching match by ID: {str(e)}")
+        return None
+        
 supabase_client = None
 if supabase_url and supabase_key:
     try:
