@@ -455,6 +455,10 @@ with col1:
     if supabase_client and use_database:
         st.write("📊 Select from Database or Enter Manually")
 
+        # Default state - assume we'll show normal UI
+        show_normal_ui = True
+        league_filter_value = None  # Default value
+
         # Check for URL parameter match_id
         if supabase_client and st.session_state.url_match_id and not st.session_state.url_params_processed:
             match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
@@ -463,6 +467,9 @@ with col1:
             st.sidebar.subheader("Debug: Match Data from URL Parameter")
             st.sidebar.write(f"Requested match_id: {st.session_state.url_match_id}")
             st.sidebar.json(match_data)
+            
+            # Mark params as processed
+            st.session_state.url_params_processed = True
             
             if match_data:
                 # Extract all necessary data
@@ -489,11 +496,11 @@ with col1:
                 
                 # Display match details in a nicer format
                 st.markdown(f"### {home_team} vs {away_team}")
-                col1, col2 = st.columns(2)
-                with col1:
+                col_a, col_b = st.columns(2)
+                with col_a:
                     st.write(f"**Country:** {country_name}")
                     st.write(f"**League:** {league}")
-                with col2:
+                with col_b:
                     st.write(f"**Date:** {match_date.strftime('%d %B %Y')}")
                 
                 # Add an analyze button
@@ -509,129 +516,96 @@ with col1:
                     st.session_state.analysis_triggered = True
                     generate_analysis_conversational(home_team, away_team, league, match_date)
                 
-                # Skip the normal UI flow by using a condition
+                # Skip the normal UI flow
                 show_normal_ui = False
             else:
-                show_normal_ui = True
                 st.warning(f"No match found with ID: {st.session_state.url_match_id}")
-            
-            # Only show the regular selection UI if no match from URL or match not found
-            if show_normal_ui:
-                # Your existing country selection code
-                countries_data = supabase_client.from_("countries").select("country_id, country").execute()
-                country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
-                
-                if country_dict:
-        
-                    selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
-                    selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name]
-                    if selected_country_id:
-                        selected_country_id = selected_country_id[0]
-        
-                        # Replace these lines
-                        # Use the correct column names (league_id, league, country_id)
-                        leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
-        
-                        # Create options dictionary with the correct column names
-                        league_options = {"All Leagues": None}
-                        league_options.update({f"{item['league']} (ID: {item['league_id']})": item['league_id'] for item in leagues_data.data})
-                        selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
-                        league_filter_value = league_options[selected_league_display]
 
-        
-        # Get matches from database
-        try:
-            matches_df = get_matches(supabase_client, league=league_filter_value)
+        # Only show regular selection UI if we should
+        if show_normal_ui:
+            # Country selection
+            countries_data = supabase_client.from_("countries").select("country_id, country").execute()
+            country_dict = {c["country_id"]: c["country"] for c in countries_data.data if c.get("country_id")}
             
-            if not matches_df.empty:
-                # Format matches for selection
-                match_options = ["Select a match..."] + [
-                    f"{row['home_team']} vs {row['away_team']} ({row['match_date']})"
-                    for _, row in matches_df.iterrows()
-                ]
-                
-                # Pre-select the match from URL parameter if available
-                # Replace the existing pre-selection block with this:
-                if "preselected_match" in st.session_state and not st.session_state.get("url_match_shown", False):
-                    pre = st.session_state.preselected_match
-                    match_key = f"{pre['home_team']} vs {pre['away_team']} ({pre['match_date']})"
-
-                    print(f"DEBUG: Looking for match: {match_key}")
-                    print(f"DEBUG: Available match options: {match_options}")
-                    
-                    # Try to find by exact match first
-                    if match_key in match_options:
-                        preselected_index = match_options.index(match_key)
-                    else:
-                        # Try to find by team names if date format might be different
-                        matches = [i for i, opt in enumerate(match_options) 
-                                  if pre['home_team'] in opt and pre['away_team'] in opt]
-                        preselected_index = matches[0] if matches else 0
-                    
-                    selected_match = st.selectbox("Select Match from Database", match_options, index=preselected_index)
-                    st.session_state.url_match_shown = True
-                else:
-                    selected_match = st.selectbox("Select Match from Database", match_options)
-                
-                # If a match is selected from database
-                if selected_match != "Select a match...":
-                    # Extract teams and date from selection
-                    parts = selected_match.split(' vs ')
-                    home_team = parts[0]
-                    remaining = parts[1].split(' (')
-                    away_team = remaining[0]
-                    match_date_str = remaining[1].rstrip(')')
-                    
-                    # Get league from dataframe
-                    match_row = matches_df[
-                        (matches_df['home_team'] == home_team) & 
-                        (matches_df['away_team'] == away_team)
-                    ]
-                    
-                    if not match_row.empty:
-                        # Get league_name or fall back to league_name if available, otherwise use filter or default
-                        if 'league_name' in match_row.columns:
-                            selected_league = match_row['league_name'].values[0]
-                        else:
-                            selected_league = league_filter_value or "Premier League"
-                    else:
-                        selected_league = league_filter_value or "Premier League"
-                    
-                    # Set match date
+            if country_dict:
+                selected_country_name = st.selectbox("Filter by Country", sorted(country_dict.values()))
+                selected_country_id = [k for k, v in country_dict.items() if v == selected_country_name]
+                if selected_country_id:
+                    selected_country_id = selected_country_id[0]
+    
+                    # League selection
+                    leagues_data = supabase_client.from_("leagues").select("league_id, league").eq("country_id", selected_country_id).execute()
+                    league_options = {"All Leagues": None}
+                    league_options.update({f"{item['league']}": item['league_id'] for item in leagues_data.data})
+                    selected_league_display = st.selectbox("Filter by League", list(league_options.keys()))
+                    league_filter_value = league_options[selected_league_display]
+    
+                    # Get matches for the selected league
                     try:
-                        match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
-                    except:
-                        match_date = datetime.now().date()
-                    
-                    # Display form with pre-filled values
-                    with st.form("match_details_form"):
-                        st.write(f"Selected: **{home_team} vs {away_team}**")
-                        league = league_filter_value
-                        # league = st.selectbox(
-                        #     "League",
-                        #     ["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1", "Champions League", "Other"],
-                        #     index=["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1", "Champions League", "Other"].index(selected_league)
-                        #     if selected_league in ["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1", "Champions League", "Other"] else 0
-                        # )
-                        match_date = st.date_input("Match Date", value=match_date)
+                        matches_df = get_matches(supabase_client, league=league_filter_value)
                         
-                        # Submit button
-                        submit_button = st.form_submit_button("Start Chat", type="primary", use_container_width=True)
-                        
-                        if submit_button:
-                            # Process the analysis
-                            # Initialize chat history for the new analysis
-                            st.session_state.chat_history = []
-                            st.session_state.analysis_in_progress = True
-                            st.session_state.analysis_chat = []
-                            st.session_state.first_load = True
-                            generate_analysis_conversational(home_team, away_team, league, match_date)
-            else:
-                st.info("No matches found in database. Enter match details manually.")
-                manual_input = True
-        except Exception as e:
-            st.error(f"Error loading matches: {str(e)}")
-            manual_input = True
+                        if not matches_df.empty:
+                            # Format matches for selection
+                            match_options = ["Select a match..."] + [
+                                f"{row['home_team']} vs {row['away_team']} ({row['match_date']})"
+                                for _, row in matches_df.iterrows()
+                            ]
+                            
+                            selected_match = st.selectbox("Select Match from Database", match_options)
+                            
+                            # If a match is selected from database
+                            if selected_match != "Select a match...":
+                                # Extract teams and date from selection
+                                parts = selected_match.split(' vs ')
+                                home_team = parts[0]
+                                remaining = parts[1].split(' (')
+                                away_team = remaining[0]
+                                match_date_str = remaining[1].rstrip(')')
+                                
+                                # Get league from dataframe
+                                match_row = matches_df[
+                                    (matches_df['home_team'] == home_team) & 
+                                    (matches_df['away_team'] == away_team)
+                                ]
+                                
+                                if not match_row.empty:
+                                    # Get league_name or fall back to league_name if available, otherwise use filter or default
+                                    if 'league_name' in match_row.columns:
+                                        selected_league = match_row['league_name'].values[0]
+                                    else:
+                                        selected_league = league_filter_value or "Premier League"
+                                else:
+                                    selected_league = league_filter_value or "Premier League"
+                                
+                                # Set match date
+                                try:
+                                    match_date = datetime.strptime(match_date_str, '%Y-%m-%d').date()
+                                except:
+                                    match_date = datetime.now().date()
+                                
+                                # Display form with pre-filled values
+                                with st.form("match_details_form"):
+                                    st.write(f"Selected: **{home_team} vs {away_team}**")
+                                    league = selected_league
+                                    match_date = st.date_input("Match Date", value=match_date)
+                                    
+                                    # Submit button
+                                    submit_button = st.form_submit_button("Start Chat", type="primary", use_container_width=True)
+                                    
+                                    if submit_button:
+                                        # Process the analysis
+                                        # Initialize chat history for the new analysis
+                                        st.session_state.chat_history = []
+                                        st.session_state.analysis_in_progress = True
+                                        st.session_state.analysis_chat = []
+                                        st.session_state.first_load = True
+                                        generate_analysis_conversational(home_team, away_team, league, match_date)
+                        else:
+                            st.info("No matches found in database. Enter match details manually.")
+                            manual_input = True
+                    except Exception as e:
+                        st.error(f"Error loading matches: {str(e)}")
+                        manual_input = True
     else:
         # Manual input mode
         manual_input = True
@@ -665,8 +639,6 @@ with col1:
                     
                     # Call conversational analysis function
                     generate_analysis_conversational(home_team, away_team, league, match_date)
-
-
                 else:
                     st.error("Please enter match details in the format 'Team A vs Team B'")
             else:
