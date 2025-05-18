@@ -77,7 +77,7 @@ def get_match_by_id(supabase_client, match_id):
         if not response.data:
             return None
         match_data = response.data[0]
-        home_team_id = match_data.get("hometeam_id")
+        home_team_id = match_data.get("hometeam_id")
         home_team_response = supabase_client.from_("teams").select("team_name").eq("team_id", home_team_id).execute()
         
         if home_team_response.data:
