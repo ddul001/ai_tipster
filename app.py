@@ -663,7 +663,7 @@ with col1:
                     st.session_state.analysis_in_progress = False
                     
                     # Call conversational analysis function
-                    generate_analysis_conversational(home_team, away_team, league, match_date)
+                    #generate_analysis_conversational(home_team, away_team, league, match_date)
                 else:
                     st.error("Please enter match details in the format 'Team A vs Team B'")
             else:
