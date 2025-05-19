@@ -31,8 +31,12 @@ def fetch_match_data(match_id):
         st.error("Match not found!")
         return None
 
-    # Resolve country name if needed
-    country_name = get_country_name_by_id(supabase_client, match_data.get("country_id"))
+    # Fix country: use existing 'country' if present else resolve via ID
+    existing_country = match_data.get("country")
+    if existing_country:
+        country_name = existing_country
+    else:
+        country_name = get_country_name_by_id(supabase_client, match_data.get("country_id"))
     match_data["country"] = country_name
 
     # Fetch stats and standings
@@ -57,12 +61,13 @@ st.subheader("Football Match Analysis")
 if match_id:
     details = fetch_match_data(match_id)
     if details:
-                # Display full details for debugging/inspection inside an expander
-        with st.expander("Raw Details (JSON & Markdown)", expanded=True):
+        # Show raw match-level data and full details
+        with st.expander("Raw Match Data & Details", expanded=True):
+            st.subheader("Match Object")
+            st.json(details["match"])
+            st.subheader("Full Details")
             st.json(details)
-            st.markdown(f"""```json
-{json.dumps(details, indent=2)}
-```""")
+            st.markdown(f"```json\n{json.dumps(details, indent=2)}\n```")
 
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
