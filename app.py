@@ -501,13 +501,26 @@ with col1:
     if in_analysis:
         # Display current analysis info
         if "match_info" in st.session_state and st.session_state.get("analysis_in_progress", False):
-             # Show spinner/status only while analysis is truly in progress
-             st.info("Analysis in progress... Please wait.")
-             match_info = st.session_state.match_info
-             st.markdown(f"### {match_info.get('match')}")
-             st.write(f"**League:** {match_info.get('league')}")
-             st.write(f"**Date:** {match_info.get('date').strftime('%d %B %Y')}")
-
+            # Show spinner/status only while analysis is truly in progress
+            st.info("Analysis in progress... Please wait.")
+            match_info = st.session_state.match_info
+            
+            # Create a match display string if 'match' key doesn't exist
+            if 'match' not in match_info and 'home_team' in match_info and 'away_team' in match_info:
+                match_display = f"{match_info.get('home_team')} vs {match_info.get('away_team')}"
+            else:
+                match_display = match_info.get('match', 'Unknown Match')
+            
+            st.markdown(f"### {match_display}")
+            st.write(f"**League:** {match_info.get('league', 'Unknown League')}")
+            
+            # Safely format date with fallback
+            try:
+                date_display = match_info.get('date', datetime.now()).strftime('%d %B %Y')
+            except:
+                date_display = "Unknown Date"
+            
+            st.write(f"**Date:** {date_display}")
         elif "match_info" in st.session_state and not st.session_state.get("analysis_in_progress", False):
             # Analysis complete, show info and button to select new match
             match_info = st.session_state.match_info
