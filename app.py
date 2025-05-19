@@ -51,10 +51,20 @@ if match_id:
 
     if match_details:
         match_info = match_details["match"]
-        st.header(f"Match: {match_info['home_team']} vs {match_info['away_team']}")
-        st.markdown(f"**League:** {match_info['league_name']}")
-        st.markdown(f"**Date:** {datetime.strptime(match_info['match_date'], '%Y-%m-%d').strftime('%d %B %Y')}")
 
+        st.header(f"{match_info['home_team']} vs {match_info['away_team']}")
+        st.markdown(f"**Country:** {match_info.get('country', 'Unknown')}")
+        st.markdown(f"**League:** {match_info.get('league_name', 'Unknown')}")
+
+        # Gracefully handle unknown dates
+        match_date = match_info.get('match_date')
+        if match_date:
+            formatted_date = datetime.strptime(match_date, '%Y-%m-%d').strftime('%d %B %Y')
+        else:
+            formatted_date = 'Date Unavailable'
+        st.markdown(f"**Date:** {formatted_date}")
+
+        # Only display match details once here clearly
         col1, col2 = st.columns(2)
         with col1:
             st.subheader(match_info['home_team'])
@@ -69,7 +79,6 @@ if match_id:
 
         if st.button("Analyze Match"):
             with st.status("Running full analysis...", expanded=True):
-                # Always run DB + News analysis
                 db_insights = agents.process_database_insights(
                     match_data=get_match_with_bets(supabase_client, match_info['home_team'], match_info['away_team']),
                     team1_data=match_details['home_team_stats'],
@@ -78,12 +87,13 @@ if match_id:
                 )
 
                 news_insights = agents.process_football_news(
-                    f"{match_info['home_team']} vs {match_info['away_team']} {match_info['league_name']} {match_info['match_date']}"
+                    f"{match_info['home_team']} vs {match_info['away_team']} {match_info['league_name']} {formatted_date}"
                 )
 
                 combined_analysis = agents.combine_analysis_with_database(news_insights, db_insights)
 
                 st.subheader("Comprehensive Match Analysis")
                 st.markdown(combined_analysis)
+
 else:
     st.info("Please provide a valid `match_id` in the URL.")
