@@ -195,23 +195,34 @@ DATABASE INSIGHTS:
 
 
 # --- Tab 3: Chat ---
+# --- Tab 3: Chat ---
 with chat_tab:
     st.subheader("💬 Match Analysis Chatbot")
+
     if not st.session_state.chat_context:
         st.info("Run or load an analysis first in the Analysis tab.")
     else:
-        question = st.text_input("Ask a question about this match:")
-        if question:
-            with st.spinner("Thinking…"):
-                answer = agents.chat_with_analysis(
-                    question,
-                    st.session_state.chat_context
-                )
-            st.session_state.chat_history.append({"role":"user",    "content":question})
-            st.session_state.chat_history.append({"role":"assistant","content":answer})
-
+        # 1) First render the full history, oldest first
         for msg in st.session_state.chat_history:
-            role = msg["role"]
-            content = msg["content"]
-            with st.chat_message(role):
-                st.markdown(content)
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        # 2) Then present the input box (which clears itself on send)
+        user_prompt = st.chat_input("Ask a question about this match:")
+        if user_prompt:
+            # append & show the user message
+            st.session_state.chat_history.append({"role":"user","content":user_prompt})
+            with st.chat_message("user"):
+                st.markdown(user_prompt)
+
+            # compute & show assistant reply
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking…"):
+                    answer = agents.chat_with_analysis(
+                        user_prompt,
+                        st.session_state.chat_context
+                    )
+                st.markdown(answer)
+
+            # store it
+            st.session_state.chat_history.append({"role":"assistant","content":answer})
