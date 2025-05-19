@@ -299,10 +299,10 @@ if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.se
         match_info["home_team"],
         match_info["away_team"],
         match_info["league"],
-        match_info["match_date"]
+        match_info["match_date"],
+        use_database=use_database  # Pass the sidebar checkbox value
     )
-
-    # Rerun is handled implicitly by st.status or at the end of the script execution
+        # Rerun is handled implicitly by st.status or at the end of the script execution
     # Adding an explicit rerun here might cause infinite loops if the analysis
     # function doesn't clear the flag properly. Let's rely on the flag and the
     # natural Streamlit render cycle after the function completes.
@@ -367,9 +367,13 @@ with st.sidebar:
     # Data source selection
     st.subheader("Data Sources")
     use_news = st.checkbox("Include News Analysis", value=True)
+    # In the sidebar, right after the use_database checkbox:
     use_database = st.checkbox("Include Database Statistics", value=True,
-                                help="Uses match data from Supabase database",
-                                disabled=supabase_client is None)
+                              help="Uses match data from Supabase database",
+                              disabled=supabase_client is None)
+    # Save to session state for use elsewhere
+    st.session_state.use_database = use_database
+    
     if use_database and supabase_client is None:
         st.warning("Supabase connection required for database statistics")
 
