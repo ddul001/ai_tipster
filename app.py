@@ -30,8 +30,8 @@ def fetch_match_data(match_id):
         st.error("Match not found!")
         return None
 
-    # Resolve country name
-    country_name = get_country_name_by_id(supabase_client, match_data.get("country"))
+    # Resolve country name if needed
+    country_name = get_country_name_by_id(supabase_client, match_data.get("country_id"))
     match_data["country"] = country_name
 
     # Fetch stats and standings
@@ -55,12 +55,15 @@ st.subheader("Football Match Analysis")
 
 if match_id:
     details = fetch_match_data(match_id)
-    
     if details:
+        # Display full details for debugging/inspection
+        st.subheader("Raw Details")
+        st.json(details)
+
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
-        st.markdown(f"**Country:** {m.get('country', 'Unknown')}" )
-        st.markdown(f"**League:** {m.get('league_name', 'Unknown')}" )
+        st.markdown(f"**Country:** {m.get('country', 'Unknown')}")
+        st.markdown(f"**League:** {m.get('league_name', 'Unknown')}")
 
         # Format date
         raw_date = m.get('match_date')
@@ -72,7 +75,6 @@ if match_id:
         else:
             formatted = 'Date Unavailable'
         st.markdown(f"**Date:** {formatted}")
-        st.markdown(details)
 
         # Show team stats
         col1, col2 = st.columns(2)
