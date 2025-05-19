@@ -123,8 +123,13 @@ if "match_from_url" not in st.session_state:
 # Function to generate analysis (remains mostly the same, but triggers are external)
 def generate_analysis_conversational(home_team, away_team, league, match_date):
     """Generate analysis for the specified match using a conversational approach"""
+    # Default use_database to the global value if not provided
+    if use_database is None:
+        use_database = st.session_state.get("use_database", True)  # Default to True if not set
+        
     try:
         log_debug(f"Starting generate_analysis_conversational for {home_team} vs {away_team}")
+
         match_details = f"{home_team} vs {away_team}"
         # Ensure league is not None before formatting
         league_display = league if league else "Unknown League"
