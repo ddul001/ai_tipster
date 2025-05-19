@@ -10,7 +10,8 @@ from data_service import (
     get_match_with_bets,
     get_country_name_by_id,
     save_analysis_for_wordpress,
-    check_analysis_exists
+    check_analysis_exists,
+    get_analysis_by_id
 )
 import agents
 
@@ -78,12 +79,8 @@ st.subheader("Football Match Analysis")
 if match_id:
     details = fetch_match_data(match_id)
     if details:
-        exists, analysis_id = check_analysis_exists(
-            supabase_client,
-            details['home_team'],
-            details['away_team'],
-            datetime.strptime(details['match_date'], '%Y-%m-%d')
-        )
+        m = details["match"]
+        exists, analysis_id = check_analysis_exists(supabase_client, match_id)
         if exists:
             record = get_analysis_by_id(supabase_client, analysis_id)
             st.subheader("Saved Analysis")
