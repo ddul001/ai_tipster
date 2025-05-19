@@ -32,15 +32,6 @@ supabase_client = init_supabase(
 # Get URL parameter
 match_id = st.query_params.get("match_id", [None])[0]
 st.write("URL Params:", match_id)
-match_id_list = match_id.get("match_id")
-if match_id_list:
-    try:
-        match_id = int(match_id_list[0])
-    except ValueError:
-        match_id = match_id_list[0]
-else:
-    match_id = None
-
 
 
 # Helper to fetch all match-related data
