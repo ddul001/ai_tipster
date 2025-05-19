@@ -9,7 +9,8 @@ from data_service import (
     get_league_standings,
     get_match_with_bets,
     get_country_name_by_id,
-    save_analysis_for_wordpress
+    save_analysis_for_wordpress,
+    check_analysis_exists
 )
 import agents
 
