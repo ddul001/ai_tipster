@@ -72,11 +72,11 @@ if match_id:
     details = fetch_match_data(match_id)
     if details:
         # Show raw match-level data and full details
-        with st.expander("Raw Match Data & Details", expanded=True):
-            st.subheader("Match Object")
-            st.json(details["match"])
-            st.subheader("Full Details")
-            st.json(details)
+        #with st.expander("Raw Match Data & Details", expanded=True):
+            #st.subheader("Match Object")
+            #st.json(details["match"])
+            #st.subheader("Full Details")
+            #st.json(details)
 
 
         m = details["match"]
