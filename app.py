@@ -62,8 +62,7 @@ def fetch_match_data(match_id):
     }
 
 # Read match_id from URL
-param = st.query_params.match_id
-
+param = st.experimental_get_query_params().get("match_id", [None])[0]
 try:
     match_id = int(param) if param is not None else None
 except ValueError:
@@ -80,51 +79,24 @@ if not match_id:
 data = fetch_match_data(match_id)
 if not data:
     st.stop()
-
 m = data["match"]
 
-# 1) See if there's already a saved analysis for this match_id
-exists, analysis_id = check_analysis_exists(supabase, match_id)
-if exists:
-    # Pull and parse the HTML
-    record = get_analysis_by_id(supabase, analysis_id)
-    html   = record.get("content","")
-    text   = parse_wordpress_analysis(html)
+# Create Tabs
+details_tab, analysis_tab, chat_tab = st.tabs([
+    "📋 Match Details", "📝 Analysis", "💬 Chat"
+])
 
-    st.subheader("🔖 Saved Analysis")
-    st.text_area("Analysis Text", text, height=300)
-
-    # Recompute DB insights
-    db_insights = agents.process_database_insights(
-        match_data  = get_match_with_bets(supabase, m["home_team"], m["away_team"]),
-        team1_data  = data["home_team_stats"],
-        team2_data  = data["away_team_stats"],
-        league_data = data["league_standings"],
-    )
-
-    # Build chat context
-    qc = f"{m['home_team']} vs {m['away_team']} | {m['league_name']} | {m['match_date']}"
-    st.session_state.chat_context = f"""
-MATCH: {qc}
-
-SAVED ANALYSIS:
-{text}
-
-DATABASE INSIGHTS:
-{db_insights}
-"""
-
-else:
-    # No saved analysis → show raw info + “Analyze Match” button
+# --- Tab 1: Match Details ---
+with details_tab:
     with st.expander("Raw Match Data & Details", expanded=True):
         st.json(m)
 
     st.header(f"{m['home_team']} vs {m['away_team']}")
-    st.markdown(f"**Country:** {m['country']}")
-    st.markdown(f"**League:** {m['league_name']}")
     date_str = m.get("match_date","Unknown")
     pretty  = datetime.strptime(date_str,"%Y-%m-%d").strftime("%d %B %Y") if date_str!="Unknown" else "Unknown"
     st.markdown(f"**Date:** {pretty}")
+    st.markdown(f"**League:** {m['league_name']}")
+    st.markdown(f"**Country:** {m['country']}")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -137,42 +109,68 @@ else:
     st.subheader("League Standings")
     st.dataframe(data["league_standings"])
 
-    if st.button("Analyze Match"):
-        with st.spinner("Running analysis…"):
-            # DB insights
-            db_insights = agents.process_database_insights(
-                match_data  = get_match_with_bets(supabase, m["home_team"], m["away_team"]),
-                team1_data  = data["home_team_stats"],
-                team2_data  = data["away_team_stats"],
-                league_data = data["league_standings"],
-            )
-            # News + synthesis
-            news_insights = agents.process_football_news(
-                f"{m['home_team']} vs {m['away_team']} {m['league_name']} {m['match_date']}"
-            )
-            combined = agents.combine_analysis_with_database(news_insights, db_insights)
+# --- Tab 2: Analysis ---
+with analysis_tab:
+    exists, analysis_id = check_analysis_exists(supabase, match_id)
+    if exists:
+        record = get_analysis_by_id(supabase, analysis_id)
+        html = record.get("content","")
+        text = parse_wordpress_analysis(html)
+        st.subheader("🔖 Saved Analysis")
+        st.text_area("Analysis Text", text, height=300)
 
-            st.subheader("🔍 Comprehensive Match Analysis")
-            st.markdown(combined)
+        # recompute DB insights for context
+        db_insights = agents.process_database_insights(
+            match_data  = get_match_with_bets(supabase, m["home_team"], m["away_team"]),
+            team1_data  = data["home_team_stats"],
+            team2_data  = data["away_team_stats"],
+            league_data = data["league_standings"],
+        )
+        qc = f"{m['home_team']} vs {m['away_team']} | {m['league_name']} | {m['match_date']}"
+        st.session_state.chat_context = f"""
+MATCH: {qc}
 
-            # Save back to WordPress
-            match_info = {
-                "match": f"{m['home_team']} vs {m['away_team']}",
-                "league": m["league_name"],
-                "date": datetime.strptime(m["match_date"], "%Y-%m-%d"),
-            }
-            results = {
-                "combined_analysis": combined,
-                "db_insights": db_insights,
-                "news_insights": news_insights,
-            }
-            ok, blog_id = save_analysis_for_wordpress(supabase, match_info, results)
-            if ok:
-                st.sidebar.success(f"✅ Saved Analysis (ID: {blog_id})")
+SAVED ANALYSIS:
+{text}
 
-            # Build chat context
-            qc = f"{m['home_team']} vs {m['away_team']} | {m['league_name']} | {m['match_date']}"
-            st.session_state.chat_context = f"""
+DATABASE INSIGHTS:
+{db_insights}
+"""
+    else:
+        st.subheader("📝 Generate Analysis")
+        if st.button("Analyze Match"):
+            with st.spinner("Running analysis…"):
+                db_insights = agents.process_database_insights(
+                    match_data  = get_match_with_bets(supabase, m["home_team"], m["away_team"]),
+                    team1_data  = data["home_team_stats"],
+                    team2_data  = data["away_team_stats"],
+                    league_data = data["league_standings"],
+                )
+                news_insights = agents.process_football_news(
+                    f"{m['home_team']} vs {m['away_team']} {m['league_name']} {m['match_date']}"
+                )
+                combined = agents.combine_analysis_with_database(news_insights, db_insights)
+
+                st.markdown("### 🔍 Comprehensive Match Analysis")
+                st.markdown(combined)
+
+                # save
+                match_info = {
+                    "match":  f"{m['home_team']} vs {m['away_team']}",
+                    "league": m["league_name"],
+                    "date":   datetime.strptime(m["match_date"], "%Y-%m-%d"),
+                }
+                results = {
+                    "combined_analysis": combined,
+                    "db_insights":       db_insights,
+                    "news_insights":     news_insights,
+                }
+                ok, blog_id = save_analysis_for_wordpress(supabase, match_info, results)
+                if ok:
+                    st.sidebar.success(f"✅ Saved Analysis (ID: {blog_id})")
+
+                qc = f"{m['home_team']} vs {m['away_team']} | {m['league_name']} | {m['match_date']}"
+                st.session_state.chat_context = f"""
 MATCH: {qc}
 
 ANALYSIS:
@@ -182,23 +180,25 @@ DATABASE INSIGHTS:
 {db_insights}
 """
 
-# --- Chat Interface ---
-st.subheader("💬 Match Analysis Chatbot")
-question = st.text_input("Ask a question about this match:")
-if question:
-    with st.spinner("Thinking…"):
-        answer = agents.chat_with_analysis(
-            question,
-            st.session_state.chat_context,
-            scraped_content = {},            # if you wish, hook in raw_news here
-            chat_history    = st.session_state.chat_history,
-        )
-    st.session_state.chat_history.append({"role":"user",    "content":question})
-    st.session_state.chat_history.append({"role":"assistant","content":answer})
+# --- Tab 3: Chat ---
+with chat_tab:
+    st.subheader("💬 Match Analysis Chatbot")
+    if not st.session_state.chat_context:
+        st.info("Run or load an analysis first in the Analysis tab.")
+    else:
+        question = st.text_input("Ask a question about this match:")
+        if question:
+            with st.spinner("Thinking…"):
+                answer = agents.chat_with_analysis(
+                    question,
+                    st.session_state.chat_context,
+                    chat_history = st.session_state.chat_history
+                )
+            st.session_state.chat_history.append({"role":"user",    "content":question})
+            st.session_state.chat_history.append({"role":"assistant","content":answer})
 
-# Render conversation
-for msg in st.session_state.chat_history:
-    role    = msg["role"]
-    content = msg["content"]
-    with st.chat_message(role):
-        st.markdown(content)
+        for msg in st.session_state.chat_history:
+            role = msg["role"]
+            content = msg["content"]
+            with st.chat_message(role):
+                st.markdown(content)
