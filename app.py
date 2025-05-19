@@ -21,6 +21,7 @@ st.set_page_config(
     page_title="TipsterHeroes - Football Match Analysis",
     page_icon="⚽",
     layout="wide",
+    initial_sidebar_state="collapsed",  # ← Add this
 )
 
 # Supabase client
@@ -88,7 +89,7 @@ details_tab, analysis_tab, chat_tab = st.tabs([
 
 # --- Tab 1: Match Details ---
 with details_tab:
-    with st.expander("Raw Match Data & Details", expanded=True):
+    with st.expander("Raw Match Data & Details", expanded=False):
         st.json(m)
 
     st.header(f"{m['home_team']} vs {m['away_team']}")
