@@ -112,28 +112,35 @@ with details_tab:
     st.dataframe(data["league_standings"])
 
 # --- Tab 2: Analysis ---
+# --- Tab 2: Analysis ---
 with analysis_tab:
     exists, analysis_id = check_analysis_exists(supabase, match_id)
     if exists:
+        # Load & parse saved HTML
         record = get_analysis_by_id(supabase, analysis_id)
-        html = record.get("content","")
-        text = parse_wordpress_analysis(html)
-        st.subheader("🔖 Saved Analysis")
-        st.text_area("Analysis Text", text, height=300)
+        html    = record.get("content", "")
+        parsed  = parse_wordpress_analysis(html)
 
-        # recompute DB insights for context
+        st.subheader("🔖 Saved Analysis")
+        # Show each paragraph as Markdown
+        for para in parsed.split("\n\n"):
+            if para.strip():
+                st.markdown(para)
+
+        # Recompute DB insights so chat has fresh context
         db_insights = agents.process_database_insights(
             match_data  = get_match_with_bets(supabase, m["home_team"], m["away_team"]),
             team1_data  = data["home_team_stats"],
             team2_data  = data["away_team_stats"],
             league_data = data["league_standings"],
         )
+
         qc = f"{m['home_team']} vs {m['away_team']} | {m['league_name']} | {m['match_date']}"
         st.session_state.chat_context = f"""
 MATCH: {qc}
 
 SAVED ANALYSIS:
-{text}
+{parsed}
 
 DATABASE INSIGHTS:
 {db_insights}
@@ -142,21 +149,24 @@ DATABASE INSIGHTS:
         st.subheader("📝 Generate Analysis")
         if st.button("Analyze Match"):
             with st.spinner("Running analysis…"):
+                # database insights
                 db_insights = agents.process_database_insights(
                     match_data  = get_match_with_bets(supabase, m["home_team"], m["away_team"]),
                     team1_data  = data["home_team_stats"],
                     team2_data  = data["away_team_stats"],
                     league_data = data["league_standings"],
                 )
+                # news → combined
                 news_insights = agents.process_football_news(
                     f"{m['home_team']} vs {m['away_team']} {m['league_name']} {m['match_date']}"
                 )
                 combined = agents.combine_analysis_with_database(news_insights, db_insights)
 
                 st.markdown("### 🔍 Comprehensive Match Analysis")
+                # Display combined analysis (already plain text/Markdown)
                 st.markdown(combined)
 
-                # save
+                # persist to WP
                 match_info = {
                     "match":  f"{m['home_team']} vs {m['away_team']}",
                     "league": m["league_name"],
@@ -171,6 +181,7 @@ DATABASE INSIGHTS:
                 if ok:
                     st.sidebar.success(f"✅ Saved Analysis (ID: {blog_id})")
 
+                # set up chat context
                 qc = f"{m['home_team']} vs {m['away_team']} | {m['league_name']} | {m['match_date']}"
                 st.session_state.chat_context = f"""
 MATCH: {qc}
@@ -181,6 +192,7 @@ ANALYSIS:
 DATABASE INSIGHTS:
 {db_insights}
 """
+
 
 # --- Tab 3: Chat ---
 with chat_tab:
