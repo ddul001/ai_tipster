@@ -403,65 +403,62 @@ def get_head_to_head(supabase, team1, team2, limit=10):
         return pd.DataFrame()
 
 def get_league_standings(supabase, league_name):
-    """Get current league standings from Supabase"""
+    """Get current league standings from Supabase, ordered by league_position ascending."""
     try:
-        # Get league ID
+        # Lookup league_id
         league_id = get_league_id_by_name(supabase, league_name)
-        
         if not league_id:
             st.warning(f"League not found: {league_name}")
             return pd.DataFrame()
-            
-        # Get all teams in this league
-        # Note: This assumes teams have a league_id field or we can determine which teams are in a league
-        # Since the schema doesn't show this relationship clearly, we'll use matches to determine teams in a league
-        
-        # Get matches for this league
-        matches_query = supabase.from_("matches").select("hometeam_id, awayteam_id").eq("league_id", league_id).execute()
-        
-        if not matches_query.data:
+
+        # Fetch all matches to collect team IDs
+        matches_resp = supabase\
+            .from_("matches")\
+            .select("hometeam_id, awayteam_id")\
+            .eq("league_id", league_id)\
+            .execute()
+
+        if not matches_resp.data:
             return pd.DataFrame()
-            
-        # Extract unique team IDs
-        team_ids = set()
-        for match in matches_query.data:
-            team_ids.add(match["hometeam_id"])
-            team_ids.add(match["awayteam_id"])
-        
-        # Get team details and stats
-        teams_data = []
-        for team_id in team_ids:
-            team_query = supabase.from_("teams").select("*").eq("team_id", team_id).execute()
-            if team_query.data:
-                teams_data.append(team_query.data[0])
-        
-        if not teams_data:
+
+        # Build unique set of team IDs
+        team_ids = {m["hometeam_id"] for m in matches_resp.data} \
+                 | {m["awayteam_id"]  for m in matches_resp.data}
+
+        # Retrieve full team records
+        teams = []
+        for tid in team_ids:
+            team_resp = supabase.from_("teams").select("*").eq("team_id", tid).execute()
+            if team_resp.data:
+                teams.append(team_resp.data[0])
+
+        if not teams:
             return pd.DataFrame()
-            
-        # Create DataFrame and sort by points
-        standings_df = pd.DataFrame(teams_data)
+
+        # Create DataFrame
+        df = pd.DataFrame(teams)
+
+        # Ensure league_position exists
+        if "league_position" in df.columns:
+            # Sort by league_position ascending
+            df = df.sort_values("league_position", ascending=True)
+        else:
+            st.warning("No league_position column found; returning unsorted.")
         
-        # Sort by points, goal difference
-        if "points_per_game" in standings_df.columns and "goal_difference" in standings_df.columns:
-            standings_df = standings_df.sort_values(
-                by=["points_per_game", "goal_difference"], 
-                ascending=[False, False]
-            )
-            
-            # Select relevant columns
-            columns_to_select = [
-                "team_id", "team_name", "matches_played", "wins", "draws", "losses",
-                "goals_scored", "goals_conceded", "goal_difference", "points_per_game"
-            ]
-            
-            # Only include columns that exist
-            available_columns = [col for col in columns_to_select if col in standings_df.columns]
-            return standings_df[available_columns]
-        
-        return standings_df
+        # Select only desired columns (exclude team_id)
+        desired = [
+            "team_name", "league_position",
+            "matches_played", "wins", "draws", "losses",
+            "goals_scored", "goals_conceded", "goal_difference",
+            "points_per_game"
+        ]
+        available = [c for c in desired if c in df.columns]
+        return df[available].reset_index(drop=True)
+
     except Exception as e:
-        st.error(f"Error retrieving league standings from Supabase: {str(e)}")
+        st.error(f"Error retrieving league standings: {e}")
         return pd.DataFrame()
+
     
 def save_analysis_for_wordpress(supabase, match_info, results, status="draft"):
     """
