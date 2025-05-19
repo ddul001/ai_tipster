@@ -121,7 +121,8 @@ if "match_from_url" not in st.session_state:
     st.session_state.match_from_url = None # To store match data found from URL param
 
 # Function to generate analysis (remains mostly the same, but triggers are external)
-def generate_analysis_conversational(home_team, away_team, league, match_date):
+def generate_analysis_conversational(home_team, away_team, league, match_date, use_database=None):
+
     """Generate analysis for the specified match using a conversational approach"""
     # Default use_database to the global value if not provided
     if use_database is None:
