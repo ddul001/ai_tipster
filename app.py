@@ -561,7 +561,7 @@ with col1:
                       except:
                            match_date_obj = datetime.now().date()
 
-                 if isinstance(match_date_obj, (datetime.datetime, datetime.date)):
+                 if isinstance(match_date_obj, (datetime, date)):
                       st.write(f"**Date:** {match_date_obj.strftime('%d %B %Y')}")
                  else:
                       st.write(f"**Date:** Unknown")
