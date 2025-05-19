@@ -7,7 +7,7 @@ from data_service import (
     get_team_stats,
     get_league_standings,
     get_match_with_bets,
-    get_country_name_by_id
+    get_country_name_by_id,
 )
 import agents
 
@@ -17,10 +17,13 @@ load_dotenv()
 # Streamlit page config
 st.set_page_config(page_title="TipsterHeroes - Football Match Analysis", page_icon="⚽", layout="wide")
 
-# Initialize Supabase
-supabase_client = init_supabase(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+# Initialize Supabase client
+supabase_client = init_supabase(
+    st.secrets.get("SUPABASE_URL"),
+    st.secrets.get("SUPABASE_KEY")
+)
 
-# Utility to fetch match-related data from DB
+# Helper to fetch all match-related data
 def fetch_match_data(match_id):
     match_data = get_match_by_id(supabase_client, match_id)
     if not match_data:
@@ -43,9 +46,8 @@ def fetch_match_data(match_id):
         "league_standings": standings
     }
 
-# Extract URL parameters
-query_params = st.query_params
-match_id = query_params.get("match_id", [None])[0]
+# Get URL parameter
+match_id = st.experimental_get_query_params().get("match_id", [None])[0]
 
 # Main UI
 st.title("⚽ TipsterHeroes.AI")
