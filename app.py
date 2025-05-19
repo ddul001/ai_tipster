@@ -29,16 +29,6 @@ supabase_client = init_supabase(
     st.secrets.get("SUPABASE_KEY")
 )
 
-# Get URL parameter
-# Get URL parameters
-details_params = st.query_params.match_id
-raw_id = details_params
-try:
-    match_id = int(raw_id)
-except (ValueError, TypeError):
-    match_id = raw_id  # fallback to string if non-numeric
-
-
 # Helper to fetch all match-related data
 def fetch_match_data(match_id):
     match_data = get_match_by_id(supabase_client, match_id)
@@ -71,8 +61,13 @@ def fetch_match_data(match_id):
         "league_standings": standings
     }
 
-
-
+# Get URL parameters
+details_params = st.query_params
+raw_id = details_params.get("match_id", [None])[0]
+try:
+    match_id = int(raw_id)
+except (ValueError, TypeError):
+    match_id = raw_id  # fallback to string if non-numeric
 
 # Main UI
 st.title("⚽ TipsterHeroes.AI")
@@ -85,9 +80,9 @@ if match_id:
         with st.expander("Raw Match Data & Details", expanded=True):
             st.subheader("Match Object")
             st.json(details["match"])
-            #st.subheader("Full Details")
-            #st.json(details)
-
+            st.subheader("Full Details")
+            st.json(details)
+            st.markdown(f"```json\n{json.dumps(details, indent=2)}\n```")
 
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
@@ -135,5 +130,29 @@ if match_id:
                 combined = agents.combine_analysis_with_database(news_insights, db_insights)
                 st.subheader("Comprehensive Match Analysis")
                 st.markdown(combined)
+
+                # --- Chatbot Interface ---
+                # Prepare chat context with analysis and match data
+                chat_context = {
+                    "match": details['match'],
+                    "db_insights": db_insights,
+                    "analysis": combined
+                }
+                if 'chat_history' not in st.session_state:
+                    st.session_state.chat_history = []
+
+                st.subheader("Match Analysis Chatbot")
+                user_input = st.text_input("Ask a question about this match:")
+                if user_input:
+                    with st.spinner("Chatbot is thinking..."):
+                        # agents.chat_with_analysis should be implemented to accept context dict
+                        response = agents.chat_with_analysis(user_input, chat_context)
+                        st.session_state.chat_history.append((user_input, response))
+
+                # Display chat history
+                for query, answer in st.session_state.chat_history:
+                    st.markdown(f"**You:** {query}")
+                    st.markdown(f"**Bot:** {answer}")
+
 else:
     st.info("Provide a valid `match_id` in the URL to load match data.")
