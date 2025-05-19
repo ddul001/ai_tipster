@@ -33,6 +33,12 @@ supabase_client = init_supabase(
     st.secrets.get("SUPABASE_KEY"),
 )
 
+# Ensure session state keys exist
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "chat_context" not in st.session_state:
+    st.session_state.chat_context = ""
+
 # Helper to fetch all match-related data
 def fetch_match_data(match_id):
     match_data = get_match_by_id(supabase_client, match_id)
@@ -67,8 +73,7 @@ match_id = st.query_params.get("match_id", [None])[0]
 try:
     match_id = int(match_id)
 except (ValueError, TypeError):
-    # leave as string if not numeric
-    pass
+    pass  # leave as-is if not numeric
 
 st.title("⚽ TipsterHeroes.AI")
 st.subheader("Football Match Analysis")
@@ -93,7 +98,7 @@ else:
         st.subheader("🔖 Saved Analysis")
         st.text(parsed_text)
 
-        # 3) Recompute fresh DB insights for chat context
+        # 3) Recompute fresh DB insights
         db_insights = agents.process_database_insights(
             match_data   = get_match_with_bets(supabase_client, m["home_team"], m["away_team"]),
             team1_data   = details["home_team_stats"],
@@ -101,9 +106,9 @@ else:
             league_data  = details["league_standings"],
         )
 
-        # 4) Assemble chat context
+        # 4) Build chat context
         full_query = f"{m['home_team']} vs {m['away_team']} {m['league_name']} {m['match_date']}"
-        chat_context = f"""
+        st.session_state.chat_context = f"""
 MATCH: {full_query}
 
 SAVED ANALYSIS:
@@ -112,10 +117,8 @@ SAVED ANALYSIS:
 DATABASE INSIGHTS:
 {db_insights}
 """
-        st.session_state.chat_context = chat_context
-
     else:
-        # Display match info
+        # Display match info & allow analysis
         with st.expander("Raw Match Data & Details", expanded=True):
             st.subheader("Match Object")
             st.json(m)
@@ -123,6 +126,7 @@ DATABASE INSIGHTS:
         st.header(f"{m['home_team']} vs {m['away_team']}")
         st.markdown(f"**Country:** {m.get('country','Unknown')}")
         st.markdown(f"**League:** {m.get('league_name','Unknown')}")
+
         raw_date = m.get("match_date")
         try:
             pretty = datetime.strptime(raw_date, "%Y-%m-%d").strftime("%d %B %Y")
@@ -143,7 +147,6 @@ DATABASE INSIGHTS:
         st.subheader("League Standings")
         st.dataframe(details["league_standings"])
 
-        # Analysis flow
         if st.button("Analyze Match"):
             with st.spinner("Running analysis..."):
                 db_insights = agents.process_database_insights(
@@ -177,9 +180,9 @@ DATABASE INSIGHTS:
                 if ok:
                     st.sidebar.success(f"Analysis saved for WordPress (ID: {blog_id})")
 
-                # Prepare chat context for new analysis
+                # Prepare chat context
                 full_query = f"{m['home_team']} vs {m['away_team']} {m['league_name']} {raw_date}"
-                chat_context = f"""
+                st.session_state.chat_context = f"""
 MATCH: {full_query}
 
 ANALYSIS:
@@ -188,12 +191,9 @@ ANALYSIS:
 DATABASE INSIGHTS:
 {db_insights}
 """
-                st.session_state.chat_context = chat_context
 
     # --- Chatbot Interface ---
     st.subheader("💬 Match Analysis Chatbot")
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
 
     question = st.text_input("Ask a question about this match:")
     if question:
