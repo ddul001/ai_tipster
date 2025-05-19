@@ -51,53 +51,53 @@ st.title("⚽ TipsterHeroes.AI")
 st.subheader("Football Match Analysis")
 
 if match_id:
-    match_details = fetch_match_data(match_id)
+    details = fetch_match_data(match_id)
+    if details:
+        m = details["match"]
+        st.header(f"{m['home_team']} vs {m['away_team']}")
+        st.markdown(f"**Country:** {m.get('country', 'Unknown')}" )
+        st.markdown(f"**League:** {m.get('league_name', 'Unknown')}" )
 
-    if match_details:
-        match_info = match_details["match"]
-
-        st.header(f"{match_info['home_team']} vs {match_info['away_team']}")
-        st.markdown(f"**Country:** {match_info.get('country', 'Unknown')}")
-        st.markdown(f"**League:** {match_info.get('league_name', 'Unknown')}")
-
-        # Gracefully handle unknown dates
-        match_date = match_info.get('match_date')
-        if match_date:
-            formatted_date = datetime.strptime(match_date, '%Y-%m-%d').strftime('%d %B %Y')
+        # Format date
+        raw_date = m.get('match_date')
+        if raw_date:
+            try:
+                formatted = datetime.strptime(raw_date, '%Y-%m-%d').strftime('%d %B %Y')
+            except:
+                formatted = raw_date
         else:
-            formatted_date = 'Date Unavailable'
-        st.markdown(f"**Date:** {formatted_date}")
+            formatted = 'Date Unavailable'
+        st.markdown(f"**Date:** {formatted}")
 
-        # Only display match details once here clearly
+        # Show team stats
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader(match_info['home_team'])
-            st.json(match_details['home_team_stats'])
-
+            st.subheader(m['home_team'])
+            st.json(details['home_team_stats'])
         with col2:
-            st.subheader(match_info['away_team'])
-            st.json(match_details['away_team_stats'])
+            st.subheader(m['away_team'])
+            st.json(details['away_team_stats'])
 
+        # Display standings
         st.subheader("League Standings")
-        st.dataframe(match_details['league_standings'])
+        st.dataframe(details['league_standings'])
 
+        # Analysis button
         if st.button("Analyze Match"):
-            with st.status("Running full analysis...", expanded=True):
+            with st.spinner("Running analysis..."):
                 db_insights = agents.process_database_insights(
-                    match_data=get_match_with_bets(supabase_client, match_info['home_team'], match_info['away_team']),
-                    team1_data=match_details['home_team_stats'],
-                    team2_data=match_details['away_team_stats'],
-                    league_data=match_details['league_standings']
+                    match_data=get_match_with_bets(
+                        supabase_client, m['home_team'], m['away_team']
+                    ),
+                    team1_data=details['home_team_stats'],
+                    team2_data=details['away_team_stats'],
+                    league_data=details['league_standings']
                 )
-
                 news_insights = agents.process_football_news(
-                    f"{match_info['home_team']} vs {match_info['away_team']} {match_info['league_name']} {formatted_date}"
+                    f"{m['home_team']} vs {m['away_team']} {m['league_name']} {raw_date}"
                 )
-
-                combined_analysis = agents.combine_analysis_with_database(news_insights, db_insights)
-
+                combined = agents.combine_analysis_with_database(news_insights, db_insights)
                 st.subheader("Comprehensive Match Analysis")
-                st.markdown(combined_analysis)
-
+                st.markdown(combined)
 else:
-    st.info("Please provide a valid `match_id` in the URL.")
+    st.info("Provide a valid `match_id` in the URL to load match data.")
