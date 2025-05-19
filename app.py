@@ -60,9 +60,9 @@ if match_id:
                 # Display full details for debugging/inspection inside an expander
         with st.expander("Raw Details (JSON & Markdown)", expanded=True):
             st.json(details)
-            st.markdown(f"```json
+            st.markdown(f"""```json
 {json.dumps(details, indent=2)}
-```")
+```""")
 
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
