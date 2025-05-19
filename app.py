@@ -32,7 +32,7 @@ supabase_client = init_supabase(
 # Get URL parameter
 # Get URL parameters
 details_params = st.query_params
-raw_id = details_params.get("match_id", [None])[0]
+raw_id = details_params.match_id
 try:
     match_id = int(raw_id)
 except (ValueError, TypeError):
