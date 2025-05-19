@@ -110,6 +110,7 @@ def get_match_by_id(supabase, match_id):
     if not resp.data:
         return None
     m = resp.data[0]
+    print("m:",m)
     return {
         "match_id": match_id,
         "home_team": m["home"]["team_name"],
