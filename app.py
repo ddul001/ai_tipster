@@ -129,6 +129,25 @@ if match_id:
                 st.subheader("Comprehensive Match Analysis")
                 st.markdown(combined)
 
+                # Save analysis to WordPress
+                match_info = {
+                    "match": f"{m['home_team']} vs {m['away_team']}",
+                    "league": m['league_name'],
+                    "date": datetime.strptime(raw_date, '%Y-%m-%d') if raw_date else datetime.now()
+                }
+                results = {
+                    "combined_analysis": combined,
+                    "db_insights": db_insights,
+                    "news_insights": news_insights
+                }
+                success, blog_id = save_analysis_for_wordpress(
+                    supabase_client,
+                    match_info,
+                    results
+                )
+                if success:
+                    st.sidebar.success(f"Analysis saved for WordPress (ID: {blog_id})")
+
                 # --- Chatbot Interface ---
                 # Prepare chat context with analysis and match data
                 chat_context = {
