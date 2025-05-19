@@ -90,6 +90,15 @@ def setup_embedchain(api_key, analysis_text):
     
     return bot
 
+def get_match_by_id(supabase, match_id):
+    resp = supabase.from_("matches").select("*").eq("match_id", match_id).limit(1).execute()
+    if not resp.data: return None
+    m = resp.data[0]
+    # fetch home/away names and league same as before…
+    # return a dict with keys home_team, away_team, league_name, match_date, etc.
+    return m
+
+
 # Memory operations
 def save_chat_to_memory(memory, user_id, match_info, query, response):
     """Save chat interaction to persistent memory"""
