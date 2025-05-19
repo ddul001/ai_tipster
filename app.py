@@ -62,7 +62,8 @@ def fetch_match_data(match_id):
     }
 
 # Read match_id from URL
-param = st.experimental_get_query_params().get("match_id", [None])[0]
+param = st.query_params.match_id
+
 try:
     match_id = int(param) if param is not None else None
 except ValueError:
