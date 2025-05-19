@@ -49,7 +49,7 @@ if "analysis_triggered" not in st.session_state:
 
 
 import os
-from datetime import datetime
+from datetime import datetime, date
 from dotenv import load_dotenv
 import json
 import traceback
@@ -363,7 +363,7 @@ if supabase_client and st.session_state.get("match_from_url") and not st.session
                    match_date_obj = datetime.now().date()
 
          # Fix the isinstance check - datetime and datetime.date are classes not instances
-         if isinstance(match_date_obj, datetime) or isinstance(match_date_obj, datetime.date):
+         if isinstance(match_date_obj, datetime) or isinstance(match_date_obj, date):
               st.write(f"**Date:** {match_date_obj.strftime('%d %B %Y')}")
          else:
               st.write(f"**Date:** Unknown")
