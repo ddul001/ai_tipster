@@ -369,7 +369,7 @@ if supabase_client and st.session_state.get("match_from_url") and not st.session
               st.write(f"**Date:** Unknown")
 
     # Button to trigger analysis for the URL match
-    if st.button("Analyze This Match", type="primary", use_container_width=True, key="analyze_url_match_button"):
+    if st.button("Analyze This Match", type="primary", use_container_width=True, key="analyze_url_match_button_col1"):
         log_debug(f"Analyze This Match button (from URL) clicked for {match_data_url.get('home_team')} vs {match_data_url.get('away_team')}")
         # Store match info to analyze
         st.session_state.match_to_analyze = match_data_url # Use the data already fetched
@@ -567,7 +567,7 @@ with col1:
                       st.write(f"**Date:** Unknown")
 
             # Button to trigger analysis for the URL match
-            if st.button("Analyze This Match", type="primary", use_container_width=True, key="analyze_url_match_button"):
+            if st.button("Analyze This Match", type="primary", use_container_width=True, key="analyze_url_match_button_top"):
                 log_debug(f"Analyze This Match button (from URL) clicked for {match_data_url.get('home_team')} vs {match_data_url.get('away_team')}")
                 # Store match info to analyze
                 st.session_state.match_to_analyze = match_data_url # Use the data already fetched
