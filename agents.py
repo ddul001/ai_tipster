@@ -37,7 +37,7 @@ def search_news_original(topic):
  
             return news_results
         
-        print("news_results",news_results)
+        #print("news_results",news_results)
         return f"No news found for {topic}."
 
 
@@ -143,7 +143,7 @@ def search_news(topic):
                 ])
 
                 print("----- Inside search_news -----")
-                print("news_results_with_content:", news_results_with_content)  # Print the list
+                #print("news_results_with_content:", news_results_with_content)  # Print the list
                 print("-----------------------------")
                 return news_results
             else:
