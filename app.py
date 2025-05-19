@@ -77,7 +77,7 @@ if match_id:
             st.json(details["match"])
             st.subheader("Full Details")
             st.json(details)
-            st.markdown(f"```json\n{json.dumps(details, indent=2)}\n```")
+
 
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
