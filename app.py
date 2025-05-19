@@ -36,24 +36,22 @@ def fetch_match_data(match_id):
         st.error("Match not found!")
         return None
 
-        # Fix country: use existing 'country' if present else resolve via ID or fallback to home team country
+    # Fix country: use existing 'country' if present else resolve via ID or fallback to home team country
     existing_country = match_data.get("country")
-    # Fetch stats early for fallback
+    # Fetch team stats early for fallback
     home_stats = get_team_stats(supabase_client, match_data["home_team"])
     away_stats = get_team_stats(supabase_client, match_data["away_team"])
-    if existing_country:
+    if existing_country and existing_country != "Unknown":
         country_name = existing_country
     else:
-        # Try resolving via country_id
         country_name = get_country_name_by_id(supabase_client, match_data.get("country_id"))
-        # Fallback to team-level country field if lookup fails
-        if country_name in (None, "Unknown Country"):
-            country_name = home_stats.get("country") or away_stats.get("country") or "Unknown Country"
+        if not country_name or country_name == "Unknown Country":
+            # fallback to team-level country
+            country_name = home_stats.get("country") or away_stats.get("country") or "Unknown"
     match_data["country"] = country_name
 
     # Fetch stats and standings
-    home_stats = get_team_stats(supabase_client, match_data["home_team"])
-    away_stats = get_team_stats(supabase_client, match_data["away_team"])
+    # home_stats and away_stats already fetched
     standings = get_league_standings(supabase_client, match_data["league_name"])
 
     return {
