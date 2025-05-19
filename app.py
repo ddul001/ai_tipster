@@ -55,7 +55,7 @@ st.subheader("Football Match Analysis")
 
 if match_id:
     details = fetch_match_data(match_id)
-    st.json(details)
+    
     if details:
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
@@ -72,6 +72,7 @@ if match_id:
         else:
             formatted = 'Date Unavailable'
         st.markdown(f"**Date:** {formatted}")
+        st.markdown(details)
 
         # Show team stats
         col1, col2 = st.columns(2)
