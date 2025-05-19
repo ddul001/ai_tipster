@@ -16,7 +16,7 @@ import agents
 load_dotenv()
 
 # Streamlit page config
-st.set_page_config(page_title="TipsterHeroes - Football Match Analysis", page_icon="⚽", layout="wide")
+st.set_page_config(page_title="TipsterHeroes - Football Match Analysis", page_icon="⚽", layout="wide", initial_sidebar_state="collapsed")
 
 # Initialize Supabase client
 supabase_client = init_supabase(
