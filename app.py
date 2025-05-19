@@ -16,7 +16,12 @@ import agents
 load_dotenv()
 
 # Streamlit page config
-st.set_page_config(page_title="TipsterHeroes - Football Match Analysis", page_icon="⚽", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="TipsterHeroes - Football Match Analysis",
+    page_icon="⚽",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # Initialize Supabase client
 supabase_client = init_supabase(
@@ -31,12 +36,19 @@ def fetch_match_data(match_id):
         st.error("Match not found!")
         return None
 
-    # Fix country: use existing 'country' if present else resolve via ID
+        # Fix country: use existing 'country' if present else resolve via ID or fallback to home team country
     existing_country = match_data.get("country")
+    # Fetch stats early for fallback
+    home_stats = get_team_stats(supabase_client, match_data["home_team"])
+    away_stats = get_team_stats(supabase_client, match_data["away_team"])
     if existing_country:
         country_name = existing_country
     else:
+        # Try resolving via country_id
         country_name = get_country_name_by_id(supabase_client, match_data.get("country_id"))
+        # Fallback to team-level country field if lookup fails
+        if country_name in (None, "Unknown Country"):
+            country_name = home_stats.get("country") or away_stats.get("country") or "Unknown Country"
     match_data["country"] = country_name
 
     # Fetch stats and standings
