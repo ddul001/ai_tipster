@@ -14,6 +14,7 @@ from data_service import (
     parse_wordpress_analysis,
 )
 import agents
+from team_viz import team_stats_visualization
 
 # Load env & configure page
 load_dotenv()
@@ -100,17 +101,23 @@ with details_tab:
     st.markdown(f"**League:** {m['league_name']}")
     st.markdown(f"**Country:** {m['country']}")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader(m["home_team"])
-        st.json(data["home_team_stats"])
-    with col2:
-        st.subheader(m["away_team"])
-        st.json(data["away_team_stats"])
+    # ← REPLACE THIS:
+    # col1, col2 = st.columns(2)
+    # with col1:
+    #     st.subheader(m["home_team"])
+    #     st.json(data["home_team_stats"])
+    # with col2:
+    #     st.subheader(m["away_team"])
+    #     st.json(data["away_team_stats"])
+
+    # → WITH THIS:
+    team_stats_visualization(
+        data["home_team_stats"],
+        data["away_team_stats"]
+    )
 
     st.subheader("League Standings")
     st.dataframe(data["league_standings"])
-
 # --- Tab 2: Analysis ---
 # --- Tab 2: Analysis ---
 with analysis_tab:
