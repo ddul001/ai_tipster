@@ -62,8 +62,8 @@ def fetch_match_data(match_id):
     }
 
 # Get URL parameters
-details_params = st.query_params
-raw_id = details_params.get("match_id", [None])[0]
+details_params = st.query_params.match_id
+raw_id = details_params
 try:
     match_id = int(raw_id)
 except (ValueError, TypeError):
