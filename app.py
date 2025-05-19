@@ -80,9 +80,9 @@ if match_id:
     if details:
         exists, analysis_id = check_analysis_exists(
             supabase_client,
-            m['home_team'],
-            m['away_team'],
-            datetime.strptime(m['match_date'], '%Y-%m-%d')
+            details['home_team'],
+            details['away_team'],
+            datetime.strptime(details['match_date'], '%Y-%m-%d')
         )
         if exists:
             record = get_analysis_by_id(supabase_client, analysis_id)
