@@ -63,11 +63,12 @@ def fetch_match_data(match_id):
     }
 
 # Read match_id from URL
-param = st.query_params.match_id
+param = st.query_params.get("match_id", [None])[0]
 try:
     match_id = int(param) if param is not None else None
 except ValueError:
     match_id = None
+
 
 st.title("⚽ TipsterHeroes.AI")
 st.subheader("Football Match Analysis")
