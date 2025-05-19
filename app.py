@@ -57,13 +57,12 @@ st.subheader("Football Match Analysis")
 if match_id:
     details = fetch_match_data(match_id)
     if details:
-        # Display full details for debugging/inspection as JSON widget
-        st.subheader("Raw Details (JSON)")
-        st.json(details)
-
-        # Also render full details in markdown code block
-        st.subheader("Raw Details (Markdown)")
-        st.markdown(f"```json\n{json.dumps(details, indent=2)}\n```")
+                # Display full details for debugging/inspection inside an expander
+        with st.expander("Raw Details (JSON & Markdown)", expanded=True):
+            st.json(details)
+            st.markdown(f"```json
+{json.dumps(details, indent=2)}
+```")
 
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
