@@ -30,8 +30,10 @@ supabase_client = init_supabase(
 )
 
 # Get URL parameter
-params = st.experimental_get_query_params()
+# Get URL parameters
+params = st.query_params
 match_id = params.get("match_id", [None])[0]
+
 
 # Helper to fetch all match-related data
 def fetch_match_data(match_id):
