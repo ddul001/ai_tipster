@@ -107,6 +107,31 @@ if supabase_url and supabase_key:
     except Exception as e:
         st.sidebar.error(f"Failed to connect to Supabase: {e}")
 
+# --- URL Parameter Processing Block ---
+if supabase_client and st.session_state.url_match_id and not st.session_state.get("url_params_processed", False):
+    log_debug(f"Processing URL parameter match_id: {st.session_state.url_match_id}")
+    match_data = get_match_by_id(supabase_client, st.session_state.url_match_id)
+    
+    # Mark params as processed regardless of whether match was found
+    st.session_state.url_params_processed = True
+    
+    if match_data:
+        log_debug(f"Match found from URL ID {st.session_state.url_match_id}: {match_data.get('home_team')} vs {match_data.get('away_team')}")
+        # Store the match data found from the URL
+        st.session_state.match_from_url = match_data
+        
+        # Auto-analyze if requested in URL and analysis hasn't been triggered yet
+        if st.session_state.url_auto_analyze and not st.session_state.get("analysis_triggered", False):
+            log_debug(f"Auto-analyze triggered from URL for {match_data.get('home_team')} vs {match_data.get('away_team')}")
+            st.session_state.match_to_analyze = match_data # Use the pre-fetched data
+            st.session_state.in_analysis_mode = True
+            st.session_state.start_analysis = True # Set the flag for the analysis execution block
+            st.session_state.analysis_triggered = True # Prevent re-triggering from URL params
+            # NO direct call to generate_analysis_conversational here
+            st.rerun() # Trigger the analysis execution block
+    else:
+        st.sidebar.warning(f"No match found in database with ID: {st.session_state.url_match_id}")
+
 st.title("⚽ TipsterHeroes.AI - Football Match Analysis")
 st.markdown("AI-powered football news analysis for match predictions and betting insights")
 
@@ -275,6 +300,7 @@ def generate_analysis_conversational(home_team, away_team, league, match_date, u
 # --- Analysis Execution Block ---
 # This block runs AT THE TOP of the script on every rerun
 # It checks the 'start_analysis' flag and performs the analysis if needed.
+
 if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.session_state and not st.session_state.get("analysis_in_progress", False):
     log_debug(f"Analysis trigger detected. state: {st.session_state.start_analysis}, match: {st.session_state.match_to_analyze.get('home_team')} vs {st.session_state.match_to_analyze.get('away_team')}")
 
@@ -300,8 +326,7 @@ if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.se
         match_info["home_team"],
         match_info["away_team"],
         match_info["league"],
-        match_info["match_date"],
-        use_database=use_database  # Pass the sidebar checkbox value
+        match_info["match_date"]
     )
         # Rerun is handled implicitly by st.status or at the end of the script execution
     # Adding an explicit rerun here might cause infinite loops if the analysis
@@ -315,6 +340,8 @@ if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.se
 # 'start_analysis' if auto_analyze is true.
 # --- Handle and display match from URL if available and not yet analyzed ---
 # Check if match_from_url exists AND we haven't triggered analysis for it yet
+
+
 if supabase_client and st.session_state.get("match_from_url") and not st.session_state.get("analysis_triggered", False):
     match_data_url = st.session_state.match_from_url
 
