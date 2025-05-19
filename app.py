@@ -569,13 +569,29 @@ with col1:
             # Button to trigger analysis for the URL match
             if st.button("Analyze This Match", type="primary", use_container_width=True, key="analyze_url_match_button_top"):
                 log_debug(f"Analyze This Match button (from URL) clicked for {match_data_url.get('home_team')} vs {match_data_url.get('away_team')}")
-                # Store match info to analyze
-                st.session_state.match_to_analyze = match_data_url # Use the data already fetched
+    
+                # Create a properly structured match_to_analyze with all required keys
+                st.session_state.match_to_analyze = {
+                    "home_team": match_data_url.get('home_team', 'Unknown Home Team'),
+                    "away_team": match_data_url.get('away_team', 'Unknown Away Team'),
+                    "league": match_data_url.get('league_name', 'Unknown League'),  # Map league_name to league
+                    "match_date": match_data_url.get('date', datetime.now().date())  # Use fallback date if missing
+                }
+                
+                # Ensure match_date is a date object
+                if isinstance(st.session_state.match_to_analyze["match_date"], str):
+                    try:
+                        st.session_state.match_to_analyze["match_date"] = datetime.strptime(
+                            st.session_state.match_to_analyze["match_date"], '%Y-%m-%d').date()
+                    except:
+                        st.session_state.match_to_analyze["match_date"] = datetime.now().date()
+                
                 st.session_state.in_analysis_mode = True
-                st.session_state.start_analysis = True # Set the flag for the analysis trigger block
-                st.session_state.analysis_triggered = True # Mark as triggered for this URL match
-                st.rerun() # Trigger analysis on next run
+                st.session_state.start_analysis = True
+                st.session_state.analysis_triggered = True
+                st.rerun()
 
+        
         else: # Show normal selection (database or manual)
             log_debug("Showing normal selection UI")
             # --- Database Selection (if enabled and connected) ---
