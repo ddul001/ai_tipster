@@ -192,8 +192,7 @@ with chat_tab:
             with st.spinner("Thinking…"):
                 answer = agents.chat_with_analysis(
                     question,
-                    st.session_state.chat_context,
-                    chat_history = st.session_state.chat_history
+                    st.session_state.chat_context
                 )
             st.session_state.chat_history.append({"role":"user",    "content":question})
             st.session_state.chat_history.append({"role":"assistant","content":answer})
