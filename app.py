@@ -197,5 +197,7 @@ if question:
 
 # Render conversation
 for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+    role    = msg["role"]
+    content = msg["content"]
+    with st.chat_message(role):
+        st.markdown(content)
