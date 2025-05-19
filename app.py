@@ -31,8 +31,12 @@ supabase_client = init_supabase(
 
 # Get URL parameter
 # Get URL parameters
-params = st.query_params
-match_id = params.get("match_id", [None])[0]
+details_params = st.query_params
+raw_id = details_params.get("match_id", [None])[0]
+try:
+    match_id = int(raw_id)
+except (ValueError, TypeError):
+    match_id = raw_id  # fallback to string if non-numeric
 
 
 # Helper to fetch all match-related data
