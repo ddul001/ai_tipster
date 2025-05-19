@@ -29,6 +29,20 @@ supabase_client = init_supabase(
     st.secrets.get("SUPABASE_KEY")
 )
 
+# Get URL parameter
+match_id = st.query_params.get("match_id", [None])[0]
+st.write("URL Params:", params)
+match_id_list = params.get("match_id")
+if match_id_list:
+    try:
+        match_id = int(match_id_list[0])
+    except ValueError:
+        match_id = match_id_list[0]
+else:
+    match_id = None
+
+
+
 # Helper to fetch all match-related data
 def fetch_match_data(match_id):
     match_data = get_match_by_id(supabase_client, match_id)
@@ -61,8 +75,8 @@ def fetch_match_data(match_id):
         "league_standings": standings
     }
 
-# Get URL parameter
-match_id = st.query_params.get("match_id", [None])[0]
+
+
 
 # Main UI
 st.title("⚽ TipsterHeroes.AI")
