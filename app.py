@@ -55,7 +55,7 @@ st.subheader("Football Match Analysis")
 
 if match_id:
     details = fetch_match_data(match_id)
-    st.info(details)
+    st.json(details)
     if details:
         m = details["match"]
         st.header(f"{m['home_team']} vs {m['away_team']}")
