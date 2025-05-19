@@ -675,28 +675,29 @@ def format_content_for_wordpress(match_info, results):
     
     return styled_content
 
-def check_analysis_exists(supabase, home_team, away_team, match_date):
-    """Check if an analysis already exists for this match"""
+def check_analysis_exists(supabase, match_id):
+    """
+    Check if an analysis already exists for this match (by match_id).
+
+    Returns:
+      (exists: bool, analysis_id: int|None)
+    """
     try:
-        # Get team IDs
-        home_team_id = get_team_id_by_name(supabase, home_team)
-        away_team_id = get_team_id_by_name(supabase, away_team)
-        
-        date_str = match_date.strftime('%Y-%m-%d')
-        
-        # Query the blog_analyses table
-        response = supabase.from_("blog_analyses").select("id") \
-            .eq("home_team_id", home_team_id) \
-            .eq("away_team_id", away_team_id) \
-            .eq("match_date", date_str) \
-            .limit(1) \
+        resp = (
+            supabase
+            .from_("blog_analyses")
+            .select("id")
+            .eq("match_id", match_id)
+            .limit(1)
             .execute()
-            
-        # Return True if an analysis exists
-        return len(response.data) > 0, response.data[0]["id"] if response.data else None
-    except Exception as e:
-        print(f"Error checking for existing analysis: {str(e)}")
+        )
+        if resp.data and len(resp.data) > 0:
+            return True, resp.data[0]["id"]
         return False, None
+    except Exception as e:
+        st.error(f"Error checking for existing analysis: {e}")
+        return False, None
+
     
 def get_analysis_by_id(supabase, analysis_id):
     """Get analysis content by ID"""
