@@ -62,7 +62,7 @@ def fetch_match_data(match_id):
     }
 
 # Get URL parameter
-match_id = st.query_params().get("match_id", [None])[0]
+match_id = st.query_params.get("match_id", [None])[0]
 
 # Main UI
 st.title("⚽ TipsterHeroes.AI")
