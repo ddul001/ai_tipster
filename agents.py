@@ -498,37 +498,50 @@ def process_database_insights(match_data, team1_data, team2_data, head_to_head_d
 
 
 
-def chat_with_analysis(query, analysis_context, scraped_content, chat_history):
-    """Use the chat agent to respond to queries with analysis and scraped content context."""
+def chat_with_analysis(
+    query: str,
+    analysis_context: str,
+    scraped_content: str = None,
+    chat_history: list[dict] = None
+) -> str:
+    """
+    Use the chat agent to respond to a user question, given:
+      - query: the user’s question
+      - analysis_context: the generated analysis text
+      - scraped_content: optional raw news content string
+      - chat_history: list of {"role": "...", "content": "..."} from prior chat
+
+    Returns the assistant’s reply as a string.
+    """
     if chat_history is None:
         chat_history = []
 
-    system_content = f"Use the following football match analysis as context:\n\n{analysis_context}"
-
-
-
+    # Build the system prompt
+    system_prompt = (
+        f"Use the following football match analysis as context for answering user questions:\n\n"
+        f"{analysis_context}"
+    )
     if scraped_content:
-        system_content += "\n\nScraped Content from News Articles:\n"
-        if scraped_content:
-            system_content += f"Content:\n{scraped_content}\n---\n"
+        system_prompt += (
+            "\n\nScraped Content from News Articles:\n"
+            f"{scraped_content}"
+        )
 
-    messages = [
-        {"role": "system", "content": system_content}
-    ]
-
-    print("system_content", system_content)
-
+    # Assemble the message list
+    messages = [{"role": "system", "content": system_prompt}]
     for msg in chat_history:
         messages.append({"role": msg["role"], "content": msg["content"]})
-
     messages.append({"role": "user", "content": query})
 
+    # Invoke the chat agent
     chat_response = client.run(
         agent=chat_agent,
         messages=messages
     )
 
+    # Return only the assistant’s reply text
     return chat_response.messages[-1]["content"]
+
 
 def combine_analysis_with_database(news_analysis, db_insights):
     """
