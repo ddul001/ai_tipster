@@ -90,13 +90,35 @@ def setup_embedchain(api_key, analysis_text):
     
     return bot
 
+# In data_service.py
+
 def get_match_by_id(supabase, match_id):
-    resp = supabase.from_("matches").select("*").eq("match_id", match_id).limit(1).execute()
-    if not resp.data: return None
+    resp = (
+        supabase
+        .from_("matches")
+        .select(
+            "*, "
+            "home:teams!hometeam_id(team_name), "
+            "away:teams!awayteam_id(team_name), "
+            "league:leagues!league_id(league), "
+            "countries!country_id(country)"
+        )
+        .eq("match_id", match_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        return None
     m = resp.data[0]
-    # fetch home/away names and league same as before…
-    # return a dict with keys home_team, away_team, league_name, match_date, etc.
-    return m
+    return {
+        "match_id": match_id,
+        "home_team": m["home"]["team_name"],
+        "away_team": m["away"]["team_name"],
+        "league_name": m["league"]["league"],
+        "match_date": m["date"],           # string YYYY-MM-DD
+        "country": m.get("country", "Unknown")
+    }
+
 
 
 # Memory operations
