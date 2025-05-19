@@ -31,7 +31,7 @@ def fetch_match_data(match_id):
         return None
 
     # Resolve country name
-    country_name = get_country_name_by_id(supabase_client, match_data.get("country_id"))
+    country_name = get_country_name_by_id(supabase_client, match_data.get("country"))
     match_data["country"] = country_name
 
     # Fetch stats and standings
