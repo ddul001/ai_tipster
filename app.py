@@ -152,7 +152,9 @@ def generate_analysis_conversational(home_team, away_team, league, match_date, u
     # Default use_database to the global value if not provided
     if use_database is None:
         use_database = st.session_state.get("use_database", True)  # Default to True if not set
-        
+    # Add this line to get use_news from session_state
+    use_news = st.session_state.get("use_news", True)  # Get use_news from session state with default
+    
     try:
         log_debug(f"Starting generate_analysis_conversational for {home_team} vs {away_team}")
 
@@ -791,37 +793,42 @@ with col2:
             with tab2:
                 st.subheader("Full Match Analysis")
 
-                # Display the most comprehensive analysis available
-                # Check if we have original HTML content (from WordPress)
-                if "original_html" in st.session_state.results:
-                    # Create sub-tabs for different view options
-                    analysis_tab1, analysis_tab2 = st.tabs(["Formatted", "Original HTML"])
+                # First check if results exists and is not None
+                if "results" in st.session_state and st.session_state.results is not None:
+                    # Now safely check for keys in results
+             
 
-                    with analysis_tab1:
-                        # Display the nicely formatted parsed content
+                    # Display the most comprehensive analysis available
+                    # Check if we have original HTML content (from WordPress)
+                    if "original_html" in st.session_state.results:
+                        # Create sub-tabs for different view options
+                        analysis_tab1, analysis_tab2 = st.tabs(["Formatted", "Original HTML"])
+    
+                        with analysis_tab1:
+                            # Display the nicely formatted parsed content
+                            if "combined_analysis" in st.session_state.results:
+                                st.markdown(st.session_state.results["combined_analysis"])
+                            elif "enhanced_analysis" in st.session_state.results:
+                                st.markdown(st.session_state.results["enhanced_analysis"])
+                            else:
+                                st.info("No formatted analysis available.")
+    
+                        with analysis_tab2:
+                            # Give option to view the original HTML
+                            with st.expander("View Original HTML"):
+                                st.code(st.session_state.results["original_html"], language="html")
+                    else:
+                        # Display the most comprehensive analysis available - no HTML version
                         if "combined_analysis" in st.session_state.results:
                             st.markdown(st.session_state.results["combined_analysis"])
                         elif "enhanced_analysis" in st.session_state.results:
                             st.markdown(st.session_state.results["enhanced_analysis"])
+                        elif "db_insights" in st.session_state.results:
+                            st.markdown(st.session_state.results["db_insights"])
+                        elif "initial_analysis" in st.session_state.results:
+                            st.markdown(st.session_state.results["initial_analysis"])
                         else:
-                            st.info("No formatted analysis available.")
-
-                    with analysis_tab2:
-                        # Give option to view the original HTML
-                        with st.expander("View Original HTML"):
-                            st.code(st.session_state.results["original_html"], language="html")
-                else:
-                    # Display the most comprehensive analysis available - no HTML version
-                    if "combined_analysis" in st.session_state.results:
-                        st.markdown(st.session_state.results["combined_analysis"])
-                    elif "enhanced_analysis" in st.session_state.results:
-                        st.markdown(st.session_state.results["enhanced_analysis"])
-                    elif "db_insights" in st.session_state.results:
-                        st.markdown(st.session_state.results["db_insights"])
-                    elif "initial_analysis" in st.session_state.results:
-                        st.markdown(st.session_state.results["initial_analysis"])
-                    else:
-                        st.info("No detailed analysis available yet.")
+                            st.info("No detailed analysis available yet.")
 
             with tab3:
                 st.subheader("Available Bets")
