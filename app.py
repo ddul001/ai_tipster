@@ -363,7 +363,7 @@ if supabase_client and st.session_state.get("match_from_url") and not st.session
                    match_date_obj = datetime.now().date()
 
          # Fix the isinstance check - datetime and datetime.date are classes not instances
-         if isinstance(match_date_obj, datetime) or isinstance(match_date_obj, date):
+        if isinstance(match_date_obj, (datetime, date)):
               st.write(f"**Date:** {match_date_obj.strftime('%d %B %Y')}")
          else:
               st.write(f"**Date:** Unknown")
