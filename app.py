@@ -21,22 +21,21 @@ supabase_client = init_supabase(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE
 
 # Utility to fetch match-related data from DB
 def fetch_match_data(match_id):
-    match_data = get_match_by_id(supabase_client, match_id)
-    if not match_data:
+    m = get_match_by_id(supabase_client, match_id)
+    if not m:
         st.error("Match not found!")
         return None
 
-    home_team_stats = get_team_stats(supabase_client, match_data['home_team'])
-    away_team_stats = get_team_stats(supabase_client, match_data['away_team'])
-    league_standings = get_league_standings(supabase_client, match_data['league_name'])
+    home_stats = get_team_stats(supabase_client, m["home_team"])
+    away_stats = get_team_stats(supabase_client, m["away_team"])
+    standings = get_league_standings(supabase_client, m["league_name"])
 
-    match_details = {
-        "match": match_data,
-        "home_team_stats": home_team_stats,
-        "away_team_stats": away_team_stats,
-        "league_standings": league_standings
+    return {
+        "match": m,
+        "home_team_stats": home_stats,
+        "away_team_stats": away_stats,
+        "league_standings": standings
     }
-    return match_details
 
 # Extract URL parameters
 query_params = st.query_params
