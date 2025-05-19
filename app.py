@@ -306,28 +306,42 @@ if st.session_state.get("start_analysis", False) and "match_to_analyze" in st.se
 
     match_info = st.session_state.match_to_analyze
 
-    # Clear the flag *before* starting the potentially long analysis
+    # Clear the flag before starting analysis
     st.session_state.start_analysis = False
 
     # Prepare analysis environment
-    st.session_state.chat_history = [] # Clear chat for new analysis
-    st.session_state.analysis_in_progress = True # Set flag that analysis is running
-    st.session_state.analysis_chat = [] # Clear internal analysis chat messages if used
-    st.session_state.results = None # Clear previous results
-    st.session_state.match_info = None # Clear previous match info
-    # The function itself will populate match_info and results when done
+    st.session_state.chat_history = []
+    st.session_state.analysis_in_progress = True
+    st.session_state.results = None
+    
+    # Create a properly structured match_info with ALL necessary keys
+    match_display = f"{match_info.get('home_team')} vs {match_info.get('away_team')}"
+    league_display = match_info.get('league', 'Unknown League')
+    match_date = match_info.get('match_date', datetime.now().date())
+    
+    # Set up the match_info with ALL the expected keys
+    st.session_state.match_info = {
+        "match": match_display,
+        "league": league_display,
+        "date": match_date,
+        "home_team": match_info.get('home_team'),
+        "away_team": match_info.get('away_team')
+    }
 
-    # Store the URL origin if it was from URL
-    if match_info.get("from_url", False):
-        st.session_state.from_url_analysis = True
+    # Start the analysis with proper error handling
+    try:
+        generate_analysis_conversational(
+            match_info["home_team"],
+            match_info["away_team"],
+            match_info.get("league", "Unknown League"),
+            match_info.get("match_date", datetime.now().date())
+        )
+    except Exception as e:
+        log_debug(f"Error in generate_analysis_conversational: {str(e)}")
+        st.error(f"An error occurred during analysis: {str(e)}")
+        st.session_state.analysis_in_progress = False
 
-    # Start the analysis
-    generate_analysis_conversational(
-        match_info["home_team"],
-        match_info["away_team"],
-        match_info["league"],
-        match_info["match_date"]
-    )
+
         # Rerun is handled implicitly by st.status or at the end of the script execution
     # Adding an explicit rerun here might cause infinite loops if the analysis
     # function doesn't clear the flag properly. Let's rely on the flag and the
